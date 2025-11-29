@@ -1,5 +1,12 @@
 import { User, Event, Place, RelocationProfile, UserRole, TargetCountry, RelocationStep } from '../types';
 
+// Helper to get a future date ISO string
+const getFutureDate = (daysToAdd: number) => {
+  const date = new Date();
+  date.setDate(date.getDate() + daysToAdd);
+  return date.toISOString();
+};
+
 // Seed Data
 const SEED_EVENTS: Event[] = [
   {
@@ -9,7 +16,7 @@ const SEED_EVENTS: Event[] = [
     country: 'Germany',
     city: 'Berlin',
     category: 'support_group',
-    date: '2024-06-15T18:00:00',
+    date: getFutureDate(5), // 5 days from now
     location: 'Community Center Mitte',
     languages: ['English', 'German'],
     attendeesCount: 24,
@@ -21,7 +28,7 @@ const SEED_EVENTS: Event[] = [
     country: 'Germany',
     city: 'Munich',
     category: 'language_club',
-    date: '2024-06-18T17:00:00',
+    date: getFutureDate(10), // 10 days from now
     location: 'Café Glockenspiel',
     languages: ['German'],
     attendeesCount: 12,
@@ -33,7 +40,7 @@ const SEED_EVENTS: Event[] = [
     country: 'Czech Republic',
     city: 'Prague',
     category: 'cultural',
-    date: '2024-06-20T19:00:00',
+    date: getFutureDate(15), // 15 days from now
     location: 'National House of Vinohrady',
     languages: ['Ukrainian', 'Czech', 'English'],
     attendeesCount: 150,
@@ -109,6 +116,44 @@ class MockDb {
     localStorage.removeItem('currentUser');
   }
 
+  async updateUser(user: User): Promise<void> {
+    await delay(300);
+    let users = this.get<User[]>('users', []);
+    const idx = users.findIndex(u => u.id === user.id);
+    if (idx !== -1) {
+      users[idx] = user;
+      this.set('users', users);
+      
+      // Update session if it's the current user
+      const currentUser = this.get<User | null>('currentUser', null);
+      if (currentUser && currentUser.id === user.id) {
+        this.set('currentUser', user);
+      }
+    }
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    await delay(300);
+    let users = this.get<User[]>('users', []);
+    users = users.filter(u => u.id !== userId);
+    this.set('users', users);
+    
+    // Cleanup related data
+    let profiles = this.get<RelocationProfile[]>('relocationProfiles', []);
+    profiles = profiles.filter(p => p.userId !== userId);
+    this.set('relocationProfiles', profiles);
+    
+    let favs = this.get<any[]>('user_favorites', []);
+    favs = favs.filter(f => f.userId !== userId);
+    this.set('user_favorites', favs);
+
+    // If current user is deleted, clear session
+    const currentUser = this.get<User | null>('currentUser', null);
+    if (currentUser && currentUser.id === userId) {
+      this.logout();
+    }
+  }
+
   async getEvents(): Promise<Event[]> {
     await delay(300);
     const stored = this.get<Event[]>('events', []);
@@ -149,6 +194,30 @@ class MockDb {
         await this.saveRelocationProfile(profile);
       }
     }
+  }
+
+  async getFavoritePlaces(userId: string): Promise<Place[]> {
+    await delay(300);
+    const all = this.get<{userId: string, place: Place}[]>('user_favorites', []);
+    return all.filter(item => item.userId === userId).map(item => item.place);
+  }
+
+  async addFavoritePlace(userId: string, place: Place): Promise<void> {
+    await delay(200);
+    const all = this.get<{userId: string, place: Place}[]>('user_favorites', []);
+    // Prevent duplicates by ID
+    const exists = all.some(item => item.userId === userId && item.place.id === place.id);
+    if (!exists) {
+      all.push({ userId, place });
+      this.set('user_favorites', all);
+    }
+  }
+
+  async removeFavoritePlace(userId: string, placeId: string): Promise<void> {
+    await delay(200);
+    let all = this.get<{userId: string, place: Place}[]>('user_favorites', []);
+    all = all.filter(item => !(item.userId === userId && item.place.id === placeId));
+    this.set('user_favorites', all);
   }
 }
 

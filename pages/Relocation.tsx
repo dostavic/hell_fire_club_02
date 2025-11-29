@@ -1,16 +1,130 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { AppContext } from '../App';
 import { db } from '../services/mockDb';
 import { AIService } from '../services/ai';
-import { RelocationProfile, TargetCountry } from '../types';
+import { RelocationProfile, RelocationStep, TargetCountry, RelocationStepItem } from '../types';
 import { useI18n } from '../services/i18n';
 
-const COUNTRY_KEYS: Record<TargetCountry, string> = {
-  [TargetCountry.GERMANY]: 'country.germany',
-  [TargetCountry.AUSTRIA]: 'country.austria',
-  [TargetCountry.CZECH_REPUBLIC]: 'country.czech_republic',
-  [TargetCountry.SLOVAKIA]: 'country.slovakia',
-  [TargetCountry.ROMANIA]: 'country.romania',
+const COUNTRIES = [
+  "Ukraine", "India", "United States", "United Kingdom", "Germany", 
+  "Austria", "Czech Republic", "Slovakia", "Romania", "Poland", 
+  "France", "Spain", "Italy", "Brazil", "Vietnam", "China", 
+  "Turkey", "Canada", "Australia", "Other"
+];
+
+const MiniChat = ({ 
+  profile, 
+  context, 
+  title, 
+  suggestions, 
+  onClose,
+  language
+}: { 
+  profile: RelocationProfile, 
+  context: string, 
+  title: string, 
+  suggestions?: string[], 
+  onClose: () => void,
+  language: string
+}) => {
+  const [messages, setMessages] = useState<{role: 'user' | 'assistant', text: string}[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const sendMessage = async (text: string) => {
+    if (!text.trim()) return;
+    const userMsg = { role: 'user' as const, text };
+    setMessages(prev => [...prev, userMsg]);
+    setInput('');
+    setLoading(true);
+
+    try {
+      const history = messages.map(m => ({ 
+        role: m.role, 
+        content: m.text 
+      }));
+
+      const response = await AIService.chatAboutStep(profile, context, text, history, language);
+      setMessages(prev => [...prev, userMsg, { role: 'assistant', text: response }]);
+    } catch (e) {
+      setMessages(prev => [...prev, userMsg, { role: 'assistant', text: "Sorry, I encountered an error." }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm">
+      <div className="bg-white w-full max-w-md h-[600px] rounded-xl shadow-2xl flex flex-col overflow-hidden border border-slate-200">
+        <div className="bg-indigo-600 p-4 flex justify-between items-center text-white">
+          <div>
+            <h3 className="font-bold text-sm">Chat Assistant</h3>
+            <p className="text-xs text-indigo-100 truncate max-w-[250px]">{title}</p>
+          </div>
+          <button onClick={onClose} className="hover:bg-indigo-500 p-1 rounded">✕</button>
+        </div>
+        
+        <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-slate-50">
+          {messages.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-slate-500 text-sm mb-4">Ask specifically about:</p>
+              <p className="font-medium text-slate-700 text-sm mb-6">"{title}"</p>
+              {suggestions && suggestions.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  {suggestions.map((q, i) => (
+                    <button 
+                      key={i} 
+                      onClick={() => sendMessage(q)}
+                      className="text-xs bg-white border border-indigo-100 text-indigo-600 py-2 px-3 rounded-full hover:bg-indigo-50 transition shadow-sm"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {messages.map((msg, i) => (
+            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[80%] rounded-lg px-4 py-2 text-sm ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-700'}`}>
+                {msg.text}
+              </div>
+            </div>
+          ))}
+          {loading && <div className="text-xs text-slate-400 ml-2">Typing...</div>}
+          <div ref={messagesEndRef} />
+        </div>
+
+        <div className="p-4 bg-white border-t border-slate-100">
+          <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} className="flex gap-2">
+            <input 
+              className="flex-grow bg-white border border-slate-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="Type your question..."
+              value={input}
+              onChange={e => setInput(e.target.value)}
+            />
+            <button 
+              type="submit" 
+              disabled={loading || !input.trim()}
+              className="bg-indigo-600 text-white rounded-full p-2 w-10 h-10 flex items-center justify-center hover:bg-indigo-700 disabled:opacity-50"
+            >
+              ➤
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default function Relocation() {
@@ -21,18 +135,24 @@ export default function Relocation() {
   const { t, language } = useI18n();
 
   // Form State
-  const [fromCountry, setFromCountry] = useState('');
+  const [citizenship, setCitizenship] = useState('Ukraine');
+  const [currentResidence, setCurrentResidence] = useState('Ukraine');
   const [toCountry, setToCountry] = useState<TargetCountry>(TargetCountry.GERMANY);
+  const [destinationCity, setDestinationCity] = useState('');
   const [purpose, setPurpose] = useState<any>('work');
   const [inDest, setInDest] = useState(false);
 
   // Document Explainer State
   const [docText, setDocText] = useState('');
-  const [docImage, setDocImage] = useState<string | null>(null);
+  const [docBase64, setDocBase64] = useState<string | null>(null);
   const [docMimeType, setDocMimeType] = useState<string>('image/jpeg');
-  const [docResult, setDocResult] = useState<{ summary: string, actions: string[] } | null>(null);
+  const [docFileName, setDocFileName] = useState<string>('');
+  const [docResult, setDocResult] = useState<{ summary: string, actions: string[], isDocument?: boolean } | null>(null);
   const [docLoading, setDocLoading] = useState(false);
   const [showDocModal, setShowDocModal] = useState(false);
+
+  // Chat State
+  const [activeChat, setActiveChat] = useState<{context: string, title: string, suggestions?: string[]} | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -52,8 +172,10 @@ export default function Relocation() {
     const newProfile: RelocationProfile = {
       id: Math.random().toString(36),
       userId: user.id,
-      fromCountry,
+      citizenship,
+      currentResidence,
       toCountry,
+      destinationCity: destinationCity.trim(),
       purpose,
       isAlreadyInDestination: inDest,
       plan: []
@@ -80,35 +202,57 @@ export default function Relocation() {
     const newStatus = currentStatus === 'done' ? 'in_progress' : 'done';
     await db.updateStepStatus(user.id, stepId, newStatus);
     
-    // Optimistic update
     const updatedPlan = profile.plan?.map(s => s.id === stepId ? { ...s, status: newStatus as any } : s);
     setProfile({ ...profile, plan: updatedPlan });
+  };
+
+  const toggleChecklistItem = async (stepId: string, itemId: string) => {
+    if (!profile) return;
+    
+    const updatedPlan = profile.plan?.map(step => {
+      if (step.id !== stepId) return step;
+      const updatedItems = step.checklistItems?.map(item => 
+        item.id === itemId ? { ...item, checked: !item.checked } : item
+      );
+      return { ...step, checklistItems: updatedItems };
+    });
+
+    setProfile({ ...profile, plan: updatedPlan });
+    await db.saveRelocationProfile({ ...profile, plan: updatedPlan });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Check size (e.g., 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File is too large. Please upload a file smaller than 5MB.");
+      return;
+    }
+
+    setDocFileName(file.name);
+    setDocMimeType(file.type);
+
     const reader = new FileReader();
     reader.onloadend = () => {
       const result = reader.result as string;
-      // result is "data:image/png;base64,....."
-      // Split to get just base64
       const base64 = result.split(',')[1];
-      setDocImage(base64);
-      setDocMimeType(file.type);
+      setDocBase64(base64);
     };
     reader.readAsDataURL(file);
   };
 
   const handleExplainDocument = async () => {
-    if (!docText && !docImage) return;
+    if (!docText && !docBase64) return;
     setDocLoading(true);
+    setDocResult(null);
     try {
-      const result = await AIService.explainDocument(docText, docImage || undefined, docMimeType, language);
+      const result = await AIService.explainDocument(docText, docBase64 || undefined, docMimeType, language);
       setDocResult(result);
     } catch (e) {
       console.error(e);
+      setDocResult({ summary: "Error processing document. Please try again.", actions: [], isDocument: false });
     } finally {
       setDocLoading(false);
     }
@@ -119,31 +263,58 @@ export default function Relocation() {
       <div className="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-100">
         <h2 className="text-2xl font-bold text-slate-900 mb-6">{t('relocation.createTitle')}</h2>
         <form onSubmit={handleCreateProfile} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-slate-700">{t('relocation.from')}</label>
-            <input 
-              type="text" 
-              required
-              className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white"
-              placeholder={t('relocation.fromPlaceholder')}
-              value={fromCountry}
-              onChange={e => setFromCountry(e.target.value)}
-            />
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Country of Citizenship</label>
+              <select 
+                required
+                className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900"
+                value={citizenship}
+                onChange={e => setCitizenship(e.target.value)}
+              >
+                {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Country of Residence</label>
+               <select 
+                required
+                className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900"
+                value={currentResidence}
+                onChange={e => setCurrentResidence(e.target.value)}
+              >
+                {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700">{t('relocation.to')}</label>
-            <select 
-              className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white"
-              value={toCountry}
-              onChange={e => setToCountry(e.target.value as TargetCountry)}
-            >
-              {Object.values(TargetCountry).map(c => <option key={c} value={c}>{t(COUNTRY_KEYS[c])}</option>)}
-            </select>
+          
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Where are you moving to?</label>
+              <select 
+                className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900"
+                value={toCountry}
+                onChange={e => setToCountry(e.target.value as TargetCountry)}
+              >
+                {Object.values(TargetCountry).map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+               <label className="block text-sm font-medium text-slate-700">Destination City (Optional)</label>
+               <input
+                type="text"
+                className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900"
+                placeholder="e.g. Berlin"
+                value={destinationCity}
+                onChange={e => setDestinationCity(e.target.value)}
+               />
+            </div>
           </div>
+
           <div>
-            <label className="block text-sm font-medium text-slate-700">{t('relocation.purpose')}</label>
+            <label className="block text-sm font-medium text-slate-700">Primary Purpose</label>
             <select 
-              className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white"
+              className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900"
               value={purpose}
               onChange={e => setPurpose(e.target.value)}
             >
@@ -151,14 +322,13 @@ export default function Relocation() {
               <option value="study">{t('relocation.purpose.study')}</option>
               <option value="protection">{t('relocation.purpose.protection')}</option>
               <option value="family">{t('relocation.purpose.family')}</option>
-              <option value="other">{t('relocation.purpose.other')}</option>
             </select>
           </div>
           <div className="flex items-center">
             <input 
               type="checkbox" 
               id="inDest"
-              className="h-4 w-4 text-indigo-600 rounded"
+              className="h-4 w-4 text-indigo-600 rounded bg-white"
               checked={inDest}
               onChange={e => setInDest(e.target.checked)}
             />
@@ -204,17 +374,73 @@ export default function Relocation() {
                   />
                 </div>
                 <div className="flex-grow">
-                  <h3 className={`font-semibold text-lg ${step.status === 'done' ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
-                    {step.title}
-                  </h3>
+                  <div className="flex justify-between items-start">
+                    <h3 className={`font-semibold text-lg ${step.status === 'done' ? 'text-slate-500 line-through' : 'text-slate-900'}`}>
+                      {step.title}
+                    </h3>
+                    <button 
+                      onClick={() => setActiveChat({ 
+                        context: `Step: ${step.title}. Details: ${step.description}`, 
+                        title: step.title, 
+                        suggestions: step.suggestedQuestions 
+                      })}
+                      className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-full transition"
+                      title="Open chat for this step"
+                    >
+                      💬
+                    </button>
+                  </div>
+                  
                   <p className="text-slate-600 mt-1 text-sm">{step.description}</p>
+                  
+                  {/* Checklist Items Rendering */}
+                  {step.type === 'checklist' && step.checklistItems && (
+                    <div className="mt-4 space-y-2 bg-slate-50 p-3 rounded-md border border-slate-100">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Required Documents</p>
+                      {step.checklistItems.map(item => (
+                        <div key={item.id} className="flex items-center justify-between bg-white p-2 rounded border border-slate-200">
+                          <div className="flex items-center gap-3">
+                            <input 
+                              type="checkbox"
+                              checked={item.checked}
+                              onChange={() => toggleChecklistItem(step.id, item.id)}
+                              className="h-4 w-4 text-indigo-600 rounded bg-white"
+                            />
+                            <span className={`text-sm ${item.checked ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{item.text}</span>
+                          </div>
+                          <button 
+                            onClick={() => setActiveChat({ 
+                              context: `Document Item: ${item.text}. Part of step: ${step.title}`, 
+                              title: `Doc: ${item.text}`,
+                              suggestions: [`What specific requirements for ${item.text}?`, `Where do I get ${item.text}?`] 
+                            })}
+                            className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2"
+                          >
+                            Ask AI 💬
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Official Links */}
                   {step.officialLinks && step.officialLinks.length > 0 && (
                     <div className="mt-3 flex gap-2 flex-wrap">
-                      {step.officialLinks.map((link, i) => (
-                        <a key={i} href="#" className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-100">
-                          {t('relocation.officialLink', { index: i + 1 })}
-                        </a>
-                      ))}
+                      {step.officialLinks.map((link, i) => {
+                         // Ensure link starts with http, otherwise it might be a relative path or hash from AI
+                         const safeLink = link.startsWith('http') ? link : '#';
+                         return (
+                          <a 
+                            key={i} 
+                            href={safeLink} 
+                            target={safeLink !== '#' ? "_blank" : "_self"}
+                            rel="noreferrer"
+                            className="text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-100 border border-indigo-100"
+                          >
+                            Official Resource {i+1} ↗
+                          </a>
+                         );
+                      })}
                     </div>
                   )}
                 </div>
@@ -226,7 +452,6 @@ export default function Relocation() {
 
       {/* Tools Section */}
       <div className="space-y-6">
-        {/* Document Explainer Card */}
         <div className="bg-gradient-to-br from-purple-600 to-indigo-700 text-white p-6 rounded-xl shadow-lg">
           <div className="flex items-center gap-3 mb-4">
             <span className="text-2xl">📄</span>
@@ -243,6 +468,18 @@ export default function Relocation() {
           </button>
         </div>
       </div>
+
+      {/* Mini Chat Overlay */}
+      {activeChat && profile && (
+        <MiniChat 
+          profile={profile}
+          context={activeChat.context}
+          title={activeChat.title}
+          suggestions={activeChat.suggestions}
+          onClose={() => setActiveChat(null)}
+          language={language}
+        />
+      )}
 
       {/* Document Explainer Modal */}
       {showDocModal && (
@@ -269,20 +506,30 @@ export default function Relocation() {
                        <span>{t('relocation.doc.choose')}</span>
                        <input 
                          type="file" 
-                         accept="image/*" 
+                         accept="image/*,application/pdf" 
                          className="hidden" 
                          onChange={handleFileChange} 
                        />
                      </label>
-                     {docImage && (
-                       <div className="relative">
-                          <img 
-                            src={`data:${docMimeType};base64,${docImage}`} 
-                            alt={t('relocation.doc.previewAlt')} 
-                            className="h-16 w-auto rounded border border-slate-200 object-cover" 
-                          />
+                     {docBase64 && (
+                       <div className="relative group">
+                          {docMimeType.startsWith('image/') ? (
+                             <img 
+                               src={`data:${docMimeType};base64,${docBase64}`} 
+                               alt="Preview" 
+                               className="h-16 w-auto rounded border border-slate-200 object-cover" 
+                             />
+                          ) : (
+                             <div className="h-16 flex items-center gap-3 bg-slate-50 border border-slate-200 rounded px-3 py-2">
+                                <span className="text-2xl text-red-500">📄</span>
+                                <div className="flex flex-col overflow-hidden max-w-[150px]">
+                                  <span className="text-xs font-bold text-slate-700 truncate">PDF Document</span>
+                                  <span className="text-[10px] text-slate-500 truncate">{docFileName}</span>
+                                </div>
+                             </div>
+                          )}
                           <button 
-                            onClick={() => { setDocImage(null); setDocMimeType('image/jpeg'); }}
+                            onClick={() => { setDocBase64(null); setDocMimeType('image/jpeg'); setDocFileName(''); }}
                             className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-sm hover:bg-red-600"
                             title={t('relocation.doc.removeImage')}
                           >
@@ -295,7 +542,7 @@ export default function Relocation() {
 
                 <button 
                   onClick={handleExplainDocument}
-                  disabled={docLoading || (!docText && !docImage)}
+                  disabled={docLoading || (!docText && !docBase64)}
                   className="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 disabled:opacity-50 mt-4 font-medium transition"
                 >
                   {docLoading ? t('relocation.doc.analyzing') : t('relocation.doc.analyze')}
@@ -303,20 +550,31 @@ export default function Relocation() {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="bg-green-50 border border-green-100 p-4 rounded-md">
-                  <h4 className="font-bold text-green-800 mb-2">{t('relocation.doc.summary')}</h4>
-                  <p className="text-green-900 text-sm">{docResult.summary}</p>
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-800 mb-2">{t('relocation.doc.actions')}</h4>
-                  <ul className="list-disc pl-5 text-sm text-slate-700 space-y-1">
-                    {docResult.actions.map((act, i) => <li key={i}>{act}</li>)}
-                  </ul>
-                </div>
+                {docResult.isDocument === false ? (
+                    <div className="bg-red-50 border border-red-100 p-4 rounded-md">
+                        <h4 className="font-bold text-red-800 mb-2">Not a valid document</h4>
+                        <p className="text-red-900 text-sm">{docResult.summary}</p>
+                        <p className="text-red-800 text-xs mt-2">Please upload a photo or PDF of a clear bureaucratic document.</p>
+                    </div>
+                ) : (
+                    <>
+                        <div className="bg-green-50 border border-green-100 p-4 rounded-md">
+                          <h4 className="font-bold text-green-800 mb-2">Summary</h4>
+                          <p className="text-green-900 text-sm">{docResult.summary}</p>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-800 mb-2">Action Items</h4>
+                          <ul className="list-disc pl-5 text-sm text-slate-700 space-y-1">
+                            {docResult.actions.map((act, i) => <li key={i}>{act}</li>)}
+                          </ul>
+                        </div>
+                    </>
+                )}
+                
                 <div className="pt-4 border-t border-slate-100">
                   <p className="text-xs text-slate-400 italic">{t('relocation.doc.disclaimer')}</p>
                   <button 
-                    onClick={() => { setDocResult(null); setDocText(''); setDocImage(null); }}
+                    onClick={() => { setDocResult(null); setDocText(''); setDocBase64(null); setDocFileName(''); }}
                     className="mt-4 text-indigo-600 text-sm hover:underline"
                   >
                     {t('relocation.doc.another')}

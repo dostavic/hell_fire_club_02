@@ -9,6 +9,7 @@ import Dashboard from './pages/Dashboard';
 import Relocation from './pages/Relocation';
 import Events from './pages/Events';
 import Places from './pages/Places';
+import Profile from './pages/Profile';
 import Auth from './pages/Auth';
 import Landing from './pages/Landing';
 import Verify from './pages/Verify';
@@ -47,10 +48,12 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
               <Link to="/places" className="hover:text-indigo-600 transition">{t('nav.places')}</Link>
             </nav>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <LanguageSwitcher />
             {user?.name && (
-              <span className="text-sm text-slate-500 hidden sm:block">{t('nav.hello', { name: user.name })}</span>
+              <Link to="/profile" className="text-sm font-medium text-slate-500 hidden sm:block hover:text-indigo-600 transition">
+                {t('nav.hello', { name: user.name })}
+              </Link>
             )}
             <button 
               onClick={logout}
@@ -116,6 +119,18 @@ export default function App() {
     setUser(null);
   };
 
+  const updateUserProfile = async (updatedUser: User) => {
+    await db.updateUser(updatedUser);
+    setUser(updatedUser);
+  };
+
+  const deleteAccount = async () => {
+    if (user) {
+      await db.deleteUser(user.id);
+      setUser(null);
+    }
+  };
+
   if (loading) return <div className="flex h-screen items-center justify-center text-indigo-600">{t('common.loading')}</div>;
 
   return (
@@ -130,6 +145,7 @@ export default function App() {
             <Route path="/relocation" element={<ProtectedRoute><Relocation /></ProtectedRoute>} />
             <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
             <Route path="/places" element={<ProtectedRoute><Places /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           </Routes>
         </Layout>
       </HashRouter>
