@@ -27,6 +27,8 @@ interface AppContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   setUser: (user: User | null) => void;
+  updateUserProfile: (updatedUser: User) => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType);
