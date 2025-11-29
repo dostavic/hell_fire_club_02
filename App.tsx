@@ -15,8 +15,18 @@ import Landing from './pages/Landing';
 // Context
 interface AppContextType {
   user: User | null;
-  login: (email: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  setUser: (user: User | null) => void;
+}
+import Verify from './pages/Verify';
+
+// Context
+interface AppContextType {
+  user: User | null;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => void;
+  setUser: (user: User | null) => void;
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType);
@@ -81,30 +91,47 @@ export default function App() {
   const { t } = useI18n();
 
   useEffect(() => {
-    const currentUser = db.getCurrentUser();
-    setUser(currentUser);
+    const token = localStorage.getItem('token');
+    if (token) {
+      // TODO: Validate token with backend
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      setUser(user);
+    }
     setLoading(false);
   }, []);
 
-  const login = async (email: string) => {
-    const u = await db.login(email);
-    setUser(u);
+  const login = async (email: string, password: string) => {
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await response.json();
+    if (response.ok) {
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      setUser(data.user);
+    } else {
+      throw new Error(data.message);
+    }
   };
 
   const logout = () => {
-    db.logout();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setUser(null);
   };
 
   if (loading) return <div className="flex h-screen items-center justify-center text-indigo-600">{t('common.loading')}</div>;
 
   return (
-    <AppContext.Provider value={{ user, login, logout }}>
+    <AppContext.Provider value={{ user, login, logout, setUser }}>
       <HashRouter>
         <Layout>
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/verify" element={<Verify />} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/relocation" element={<ProtectedRoute><Relocation /></ProtectedRoute>} />
             <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
