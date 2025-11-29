@@ -11,14 +11,6 @@ import Events from './pages/Events';
 import Places from './pages/Places';
 import Auth from './pages/Auth';
 import Landing from './pages/Landing';
-
-// Context
-interface AppContextType {
-  user: User | null;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
-  setUser: (user: User | null) => void;
-}
 import Verify from './pages/Verify';
 
 // Context
