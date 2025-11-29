@@ -1,276 +1,276 @@
 import OpenAI from "openai";
 import { RelocationProfile, RelocationStep } from "../types";
 
-type RelocationPlanPayload = {
-  steps: Array<{
-    id?: string;
-    title: string;
-    description: string;
-    priority: number;
-    officialLinks?: string[];
-  }>;
+// NOTE: In a real app, never expose API keys on the client.
+// This is kept for the client-side demo only.
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+  dangerouslyAllowBrowser: true,
+});
+
+const TEXT_MODEL = "gpt-4o-mini";
+const VISION_MODEL = "gpt-4o-mini";
+
+type ChatHistoryItem = {
+  role: "user" | "assistant" | "model";
+  text?: string;
+  content?: string;
+  parts?: Array<{ text: string }>;
 };
 
-type DocAnalysisPayload = { summary: string; actions: string[] };
-type CitySuggestionsPayload = {
-  suggestions: Array<{ title: string; description: string; address: string; reason?: string }>;
-};
-
-let client: OpenAI | null = null;
-
-const getClient = () => {
-  if (!client) {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error("Missing OpenAI API key. Add OPENAI_API_KEY to your .env.local file.");
-    }
-    client = new OpenAI({
-      apiKey,
-      dangerouslyAllowBrowser: true,
-    });
-  }
-  return client;
-};
-
-const extractText = (content: string | Array<{ text?: string }> | null | undefined): string => {
-  if (!content) return "";
-  if (typeof content === "string") return content;
-  return content.map(part => part?.text ?? "").join(" ").trim();
-};
-
-const parseJson = <T>(value: string | undefined, fallback: T): T => {
-  if (!value) return fallback;
+const parseJson = <T>(raw: string, fallback: T): T => {
   try {
-    return JSON.parse(value) as T;
-  } catch (error) {
-    console.warn("Failed to parse AI JSON response", error, value);
+    const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
+    return JSON.parse(cleaned) as T;
+  } catch (err) {
+    console.error("AI JSON parse failed", err);
     return fallback;
   }
 };
 
+const mapHistory = (history: ChatHistoryItem[] = []) =>
+  history
+    .map((h) => {
+      const content =
+        h.content ||
+        h.text ||
+        (Array.isArray(h.parts) ? h.parts.map((p) => p.text).join("\n") : "");
+      if (!content) return null;
+      const role = h.role === "assistant" || h.role === "model" ? "assistant" : "user";
+      return { role, content } as const;
+    })
+    .filter(Boolean) as { role: "assistant" | "user"; content: string }[];
+
 export const AIService = {
   /**
-   * Generates a relocation plan with structured JSON using OpenAI (gpt-4o-mini).
+   * Generates a relocation plan with concise steps and suggested questions.
    */
-  async generateRelocationPlan(profile: RelocationProfile, language: string = "en"): Promise<RelocationStep[]> {
-    const prompt = `
-      Create a detailed step-by-step relocation checklist for a person moving:
-      FROM: ${profile.fromCountry}
-      TO: ${profile.toCountry}
-      PURPOSE: ${profile.purpose}
-      CURRENTLY IN DESTINATION: ${profile.isAlreadyInDestination ? "Yes" : "No"}
-      LANGUAGE: ${language}
-
-      Focus on visa, residence permits, registration, insurance, and housing. Keep language simple.
-      Write titles and descriptions in the specified LANGUAGE.
-      Return a JSON object: { "steps": [...] } only.
-      Each step should include: id (string, slug), title, description, priority (1 is highest), officialLinks (array of URLs or empty).
-    `;
-
-    const completion = await getClient().chat.completions.create({
-      model: "gpt-4o-mini",
+  async generateRelocationPlan(
+    profile: RelocationProfile,
+    language: string = "English"
+  ): Promise<RelocationStep[]> {
+    const isNotInDest = !profile.isAlreadyInDestination;
+    const completion = await openai.chat.completions.create({
+      model: TEXT_MODEL,
       messages: [
-        { role: "system", content: "You are an expert relocation assistant for newcomers in Europe. Respond with JSON only." },
-        { role: "user", content: prompt },
-      ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "relocation_plan",
-          schema: {
-            type: "object",
-            properties: {
-              steps: {
-                type: "array",
-                minItems: 5,
-                items: {
-                  type: "object",
-                  properties: {
-                    id: { type: "string", description: "short slug-like id" },
-                    title: { type: "string" },
-                    description: { type: "string" },
-                    priority: { type: "integer", minimum: 1 },
-                    officialLinks: { type: "array", items: { type: "string" } },
-                  },
-                  required: ["id", "title", "description", "priority", "officialLinks"],
-                  additionalProperties: false,
-                },
-              },
-            },
-            required: ["steps"],
-            additionalProperties: false,
-          },
-          strict: true,
+        {
+          role: "system",
+          content: `You are a relocation assistant. Respond in ${language}. Keep steps concise. If the user is not already in the destination, the first step must be titled "Gather Required Documents" with type "checklist" and include concrete checklistItems. Always return a JSON object with a "steps" array only.`,
         },
-      },
+        {
+          role: "user",
+          content: `
+            Create a step-by-step relocation plan.
+            CITIZENSHIP: ${profile.citizenship}
+            CURRENT RESIDENCE: ${profile.currentResidence}
+            MOVING TO: ${profile.toCountry}
+            PURPOSE: ${profile.purpose}
+            CURRENTLY IN DESTINATION: ${isNotInDest ? "No" : "Yes"}
+            DESTINATION CITY: ${profile.destinationCity || "Not specified"}
+
+            Rules:
+            - 6-10 steps.
+            - Each step must have suggestedQuestions (3-4 concise ideas).
+            - type is either "default" or "checklist".
+            - checklistItems only when type is "checklist".
+            - Include optional officialLinks when relevant.
+            - JSON shape: { "steps": [ { id, title, description, priority, type, checklistItems, officialLinks, suggestedQuestions } ] }
+          `,
+        },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.4,
     });
 
-    const content = extractText(completion.choices[0]?.message?.content);
-    const parsed = parseJson<RelocationPlanPayload>(content, { steps: [] });
+    const data = parseJson<{ steps?: any[] }>(completion.choices[0].message?.content || "{}", {
+      steps: [],
+    });
+    const stepsArray = Array.isArray(data.steps)
+      ? data.steps
+      : Array.isArray((data as any))
+      ? (data as any)
+      : [];
 
-    return parsed.steps.map((step, idx) => ({
-      id: step.id || `step-${idx + 1}`,
-      title: step.title || `Step ${idx + 1}`,
-      description: step.description || "",
-      priority: Number.isInteger(step.priority) ? step.priority : idx + 1,
-      officialLinks: Array.isArray(step.officialLinks) ? step.officialLinks : [],
-      status: "not_started",
-    }));
+    return stepsArray.map((step, idx) => {
+      const checklist = Array.isArray(step.checklistItems)
+        ? step.checklistItems
+            .map((item: any, itemIdx: number) => {
+              const text =
+                typeof item === "string"
+                  ? item
+                  : item?.text || item?.title || item?.name || "";
+
+              return {
+                id: item?.id || `${step.id || `step_${idx + 1}`}_item_${itemIdx + 1}`,
+                text,
+                checked:
+                  typeof item === "object" && item !== null && "checked" in item
+                    ? Boolean(item.checked)
+                    : false,
+              };
+            })
+            .filter((item: any) => Boolean(item.text?.trim()))
+        : undefined;
+
+      return {
+        id: step.id || `step_${idx + 1}`,
+        title: step.title || `Step ${idx + 1}`,
+        description: step.description || "",
+        priority: typeof step.priority === "number" ? step.priority : idx + 1,
+        status: "not_started" as const,
+        type: step.type === "checklist" ? "checklist" : "default",
+        checklistItems: checklist,
+        officialLinks: Array.isArray(step.officialLinks) ? step.officialLinks : [],
+        suggestedQuestions: Array.isArray(step.suggestedQuestions) ? step.suggestedQuestions : [],
+      };
+    });
   },
 
   /**
-   * Explains a document from text or image using OpenAI Vision.
+   * Chat about a specific step or document.
+   */
+  async chatAboutStep(
+    profile: RelocationProfile,
+    contextText: string,
+    message: string,
+    history: ChatHistoryItem[] = [],
+    language: string = "English"
+  ): Promise<string> {
+    const messages = [
+      {
+        role: "system" as const,
+        content: `You are a helpful relocation assistant. The user is moving from ${profile.currentResidence} (citizen of ${profile.citizenship}) to ${profile.toCountry}. Respond in ${language}. Keep answers concise and specific to the user's context.`,
+      },
+      ...mapHistory(history),
+      {
+        role: "user" as const,
+        content: `Context: ${contextText}\nQuestion: ${message}`,
+      },
+    ];
+
+    const completion = await openai.chat.completions.create({
+      model: TEXT_MODEL,
+      messages,
+      temperature: 0.5,
+    });
+
+    return completion.choices[0].message?.content?.trim() || "I couldn't generate a response.";
+  },
+
+  /**
+   * Explains a document from text or file (image/pdf).
    */
   async explainDocument(
     text?: string,
-    imageBase64?: string,
-    imageMimeType: string = "image/jpeg",
-    language: string = "en"
-  ): Promise<{ summary: string; actions: string[] }> {
-    const userContent: any[] = [];
+    fileBase64?: string,
+    mimeType: string = "image/jpeg",
+    language: string = "English"
+  ): Promise<{ summary: string; actions: string[]; isDocument: boolean }> {
+    const contentParts: any[] = [];
 
     if (text) {
-      userContent.push({ type: "text", text });
+      contentParts.push({ type: "text", text: `Provided text: ${text}` });
     }
-    if (imageBase64) {
-      userContent.push({
+    if (fileBase64) {
+      contentParts.push({
         type: "image_url",
-        image_url: { url: `data:${imageMimeType};base64,${imageBase64}` },
+        image_url: {
+          url: `data:${mimeType};base64,${fileBase64}`,
+        },
       });
     }
-
-    userContent.push({
+    contentParts.push({
       type: "text",
-      text: `Summarize in at most 2 sentences and list 3-5 action items. Use language: ${language}. Respond with JSON only.`,
+      text: `
+        Analyze the provided content.
+        1) Decide if this is a bureaucratic document/form/letter.
+        2) If NOT a document, set isDocument=false and return a friendly summary telling the user to upload a document.
+        3) If it IS a document, provide a two-sentence summary and 3-5 immediate action items.
+        Respond in ${language}.
+        Return JSON only: { "summary": string, "actions": string[], "isDocument": boolean }.
+      `,
     });
 
-    const response = await getClient().chat.completions.create({
-      model: "gpt-4o-mini",
+    const completion = await openai.chat.completions.create({
+      model: VISION_MODEL,
       messages: [
-        {
-          role: "system",
-          content: "You help newcomers understand bureaucratic documents. Be concise and actionable. Respond in the user's language.",
-        },
-        { role: "user", content: userContent },
+        { role: "system", content: "You help immigrants quickly understand documents." },
+        { role: "user", content: contentParts },
       ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "document_summary",
-          schema: {
-            type: "object",
-            properties: {
-              summary: { type: "string" },
-              actions: { type: "array", minItems: 1, maxItems: 5, items: { type: "string" } },
-            },
-            required: ["summary", "actions"],
-            additionalProperties: false,
-          },
-          strict: true,
-        },
-      },
+      response_format: { type: "json_object" },
+      temperature: 0.2,
     });
 
-    const content = extractText(response.choices[0]?.message?.content);
-    const parsed = parseJson<DocAnalysisPayload>(content, { summary: "", actions: [] });
-
-    return {
-      summary: parsed.summary || "",
-      actions: Array.isArray(parsed.actions) ? parsed.actions : [],
-    };
+    return parseJson<{ summary: string; actions: string[]; isDocument: boolean }>(
+      completion.choices[0].message?.content || "{}",
+      { summary: "", actions: [], isDocument: false }
+    );
   },
 
   /**
-   * Suggests places without Maps grounding (pure OpenAI suggestions).
+   * Suggests places in a city without external grounding.
    */
-  async getCitySuggestions(city: string, budget: string, interests: string[], language: string = "en"): Promise<any[]> {
-    const response = await getClient().chat.completions.create({
-      model: "gpt-4o-mini",
+  async getCitySuggestions(
+    city: string,
+    budget: string,
+    interests: string[],
+    language: string = "English"
+  ): Promise<any[]> {
+    const completion = await openai.chat.completions.create({
+      model: TEXT_MODEL,
       messages: [
         {
           role: "system",
-          content:
-            "Recommend inclusive places for immigrants (community centers, cafes, libraries, coworking, clubs). Include neighborhood hints. Respond in the requested language.",
+          content: `Suggest 3 welcoming places for newcomers. Provide clear titles, short descriptions, and a link or address when possible. Respond in ${language}. Return a JSON object with "suggestions" array only.`,
         },
         {
           role: "user",
           content: `City: ${city}\nBudget: ${budget}\nInterests: ${interests.join(
             ", "
-          )}\nLanguage: ${language}\nReturn 3 places with title, description, address/neighborhood, and optional reason.`,
+          )}`,
         },
       ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "city_suggestions",
-          schema: {
-            type: "object",
-            properties: {
-              suggestions: {
-                type: "array",
-                minItems: 3,
-                maxItems: 3,
-                items: {
-                  type: "object",
-                  properties: {
-                    title: { type: "string" },
-                    description: { type: "string" },
-                    address: { type: "string" },
-                    reason: { type: "string" },
-                  },
-                  required: ["title", "description", "address", "reason"],
-                  additionalProperties: false,
-                },
-              },
-            },
-            required: ["suggestions"],
-            additionalProperties: false,
-          },
-          strict: true,
-        },
-      },
+      response_format: { type: "json_object" },
+      temperature: 0.6,
     });
 
-    const rawContent = extractText(response.choices[0]?.message?.content);
-    const parsed = parseJson<CitySuggestionsPayload>(rawContent, {
-      suggestions: [],
-    });
+    const data = parseJson<{ suggestions?: any[] }>(
+      completion.choices[0].message?.content || "{}",
+      { suggestions: [] }
+    );
+    const suggestions = Array.isArray(data.suggestions)
+      ? data.suggestions
+      : Array.isArray((data as any))
+      ? (data as any)
+      : [];
 
-    if (parsed.suggestions.length > 0) {
-      return parsed.suggestions.map(item => ({
-        ...item,
-        address: item.address?.startsWith("http")
-          ? item.address
-          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-              `${item.title}, ${city} ${item.address ?? ""}`
-            )}`,
-      }));
+    if (suggestions.length === 0) {
+      return [{ rawText: completion.choices[0].message?.content || "" }];
     }
 
-    return rawContent ? [{ rawText: rawContent }] : [];
+    return suggestions.map((s: any, idx: number) => ({
+      title: s.title || `Place ${idx + 1}`,
+      description: s.description || "",
+      address: s.address || s.link || "",
+    }));
   },
 
   /**
-   * Lightweight chat helper for future chat UI.
+   * Chat bot for general questions.
    */
-  async chat(
-    history: { role: "user" | "model"; parts: [{ text: string }] }[],
-    message: string
-  ): Promise<string> {
-    const mappedHistory = history.map(h => ({
-      role: h.role === "model" ? "assistant" : "user",
-      content: h.parts.map(p => p.text).join("\n"),
-    }));
+  async chat(history: ChatHistoryItem[] = [], message: string, language: string = "English") {
+    const messages = [
+      { role: "system" as const, content: `You are a helpful relocation assistant. Respond in ${language}.` },
+      ...mapHistory(history),
+      { role: "user" as const, content: message },
+    ];
 
-    const response = await getClient().chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: "You are a friendly relocation assistant for newcomers in Europe." },
-        ...mappedHistory,
-        { role: "user", content: message },
-      ],
+    const completion = await openai.chat.completions.create({
+      model: TEXT_MODEL,
+      messages,
+      temperature: 0.5,
     });
 
-    return extractText(response.choices[0]?.message?.content);
+    return completion.choices[0].message?.content;
   },
 };

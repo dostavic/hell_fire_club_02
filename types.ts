@@ -22,6 +22,12 @@ export interface User {
   interests: string[];
 }
 
+export interface RelocationStepItem {
+  id: string;
+  text: string;
+  checked: boolean;
+}
+
 export interface RelocationStep {
   id: string;
   title: string;
@@ -29,13 +35,18 @@ export interface RelocationStep {
   status: 'not_started' | 'in_progress' | 'done';
   priority: number;
   officialLinks?: string[];
+  type?: 'checklist' | 'default';
+  checklistItems?: RelocationStepItem[];
+  suggestedQuestions?: string[];
 }
 
 export interface RelocationProfile {
   id: string;
   userId: string;
-  fromCountry: string;
+  citizenship: string;
+  currentResidence: string; // Formerly fromCountry, simplified mapping
   toCountry: TargetCountry;
+  destinationCity?: string;
   purpose: 'work' | 'study' | 'protection' | 'family' | 'other';
   isAlreadyInDestination: boolean;
   plan?: RelocationStep[];
@@ -63,7 +74,7 @@ export interface Place {
   city: string;
   category: 'restaurant' | 'cafe' | 'park' | 'library' | 'faith' | 'other';
   address: string;
-  priceLevel: 'low' | 'medium' | 'high' | 'free';
+  priceLevel: 'low' | 'medium' | 'high' | 'free' | 'unknown';
   tags: string[];
   isFavorite?: boolean;
   website?: string;

@@ -56,16 +56,28 @@ export default function Dashboard() {
           {profile ? (
             <div className="mt-4">
               <div className="flex justify-between text-sm mb-1">
-                <span className="font-medium text-slate-700">{t('dashboard.progressLabel', { percent: progress })}</span>
-                <span className="text-slate-500">{t('dashboard.stepsLabel', { done: completedSteps, total: totalSteps })}</span>
+                {/* TODO: add i18n */}
+
+                <span className="font-medium text-slate-700">{progress}% Completed</span>
+                <span className="text-slate-500">{completedSteps}/{totalSteps} steps</span>
               </div>
               <div className="w-full bg-slate-200 rounded-full h-2.5">
                 <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
               </div>
               <div className="mt-6 flex gap-3">
-                <Link to="/relocation" className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-md text-sm font-medium hover:bg-indigo-100 transition">
-                  {t('dashboard.continue')}
-                </Link>
+                {/* TODO: add i18n */}
+                {progress === 100 ? (
+                  <button 
+                    disabled 
+                    className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium cursor-not-allowed opacity-90"
+                  >
+                    All tasks done
+                  </button>
+                ) : (
+                  <Link to="/relocation" className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-md text-sm font-medium hover:bg-indigo-100 transition">
+                    Continue Tasks
+                  </Link>
+                )}
               </div>
             </div>
           ) : (
@@ -108,10 +120,12 @@ export default function Dashboard() {
             <div key={evt.id} className="bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-md transition">
               <div className="p-5">
                 <span className="inline-block px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded-md mb-2">
-                  {t(`events.category.${evt.category}`)}
+                  {/* TODO: add i18n */}
+                  {evt.category.replace('_', ' ')}
                 </span>
                 <h3 className="font-bold text-slate-900 mb-1">{evt.title}</h3>
-                <p className="text-sm text-slate-500 mb-3">{evt.city} • {new Date(evt.date).toLocaleDateString(localeId)}</p>
+                {/* TODO: add i18n */}
+                <p className="text-sm text-slate-500 mb-3">{evt.city} • {new Date(evt.date).toLocaleDateString()}</p>
                 <p className="text-sm text-slate-600 line-clamp-2">{evt.description}</p>
               </div>
             </div>
