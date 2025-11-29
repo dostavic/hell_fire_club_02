@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { db } from '../services/mockDb';
 import { AIService } from '../services/ai';
 import { Place } from '../types';
+import { useI18n } from '../services/i18n';
 
 export default function Places() {
   const [places, setPlaces] = useState<Place[]>([]);
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
   const [loadingAi, setLoadingAi] = useState(false);
   const [cityInput, setCityInput] = useState('Berlin');
+  const { t, language } = useI18n();
 
   useEffect(() => {
     db.getPlaces().then(setPlaces);
@@ -18,7 +20,7 @@ export default function Places() {
     setAiSuggestions([]);
     try {
       // Hardcoded interests for demo
-      const results = await AIService.getCitySuggestions(cityInput, 'medium', ['culture', 'coffee', 'meeting people']);
+      const results = await AIService.getCitySuggestions(cityInput, 'medium', ['culture', 'coffee', 'meeting people'], language);
       setAiSuggestions(results);
     } catch (e) {
       console.error(e);
@@ -31,11 +33,8 @@ export default function Places() {
     <div className="space-y-8">
       <div className="bg-indigo-900 text-white p-8 rounded-2xl shadow-lg">
         <div className="max-w-2xl">
-          <h1 className="text-3xl font-bold mb-4">Discover Your New City</h1>
-          <p className="text-indigo-200 mb-6">
-            Find immigrant-friendly restaurants, libraries, faith places, and community centers. 
-            Use our AI City Buddy to get personalized recommendations grounded in Google Maps data.
-          </p>
+          <h1 className="text-3xl font-bold mb-4">{t('places.heading')}</h1>
+          <p className="text-indigo-200 mb-6">{t('places.lead')}</p>
           
           <div className="flex gap-2">
             <input 
@@ -43,14 +42,14 @@ export default function Places() {
               value={cityInput}
               onChange={e => setCityInput(e.target.value)}
               className="flex-grow px-4 py-3 rounded-lg text-slate-900 focus:outline-none bg-white"
-              placeholder="Enter city (e.g. Berlin, Prague)..."
+              placeholder={t('places.placeholder')}
             />
             <button 
               onClick={handleCityBuddy}
               disabled={loadingAi}
               className="bg-indigo-500 hover:bg-indigo-400 px-6 py-3 rounded-lg font-semibold transition disabled:opacity-50"
             >
-              {loadingAi ? 'Searching...' : 'Ask City Buddy'}
+              {loadingAi ? t('places.searching') : t('places.askBuddy')}
             </button>
           </div>
         </div>
@@ -59,7 +58,7 @@ export default function Places() {
       {aiSuggestions.length > 0 && (
         <div className="mb-8">
           <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-            ✨ AI Recommendations for {cityInput}
+            {t('places.aiTitle', { city: cityInput })}
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
             {aiSuggestions.map((s, i) => (
@@ -72,7 +71,7 @@ export default function Places() {
                       <p className="text-sm text-green-800 mt-2">{s.description}</p>
                       {s.address && (
                           <a href={s.address} target="_blank" rel="noreferrer" className="block mt-4 text-xs text-green-700 underline">
-                              View on Google Maps
+                              {t('places.viewMaps')}
                           </a>
                       )}
                     </>
@@ -84,13 +83,13 @@ export default function Places() {
       )}
 
       <div>
-        <h2 className="text-xl font-bold text-slate-900 mb-4">Curated Places</h2>
+        <h2 className="text-xl font-bold text-slate-900 mb-4">{t('places.curated')}</h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
           {places.map(place => (
             <div key={place.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition group">
               <div className="flex justify-between items-start mb-2">
                 <span className={`px-2 py-1 rounded text-xs font-semibold ${place.priceLevel === 'free' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
-                   {place.priceLevel === 'free' ? 'Free' : place.priceLevel}
+                   {place.priceLevel === 'free' ? t('common.free') : t(`common.price.${place.priceLevel}`)}
                 </span>
                 <button className="text-slate-300 hover:text-red-500 transition">♥</button>
               </div>

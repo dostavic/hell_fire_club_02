@@ -2,6 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from 'react';
 import { HashRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { User } from './types';
 import { db } from './services/mockDb';
+import { LanguageSwitcher, useI18n } from './services/i18n';
 
 // Pages
 import Dashboard from './pages/Dashboard';
@@ -22,6 +23,7 @@ export const AppContext = createContext<AppContextType>({} as AppContextType);
 
 const Layout = ({ children }: { children?: React.ReactNode }) => {
   const { user, logout } = useContext(AppContext);
+  const { t } = useI18n();
   const location = useLocation();
 
   if (location.pathname === '/' || location.pathname.startsWith('/auth')) {
@@ -35,19 +37,22 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
           <div className="flex items-center gap-8">
             <Link to="/dashboard" className="text-2xl font-bold text-indigo-600 tracking-tight">ImmiPath</Link>
             <nav className="hidden md:flex gap-6 text-sm font-medium text-slate-600">
-              <Link to="/dashboard" className="hover:text-indigo-600 transition">Dashboard</Link>
-              <Link to="/relocation" className="hover:text-indigo-600 transition">Relocation</Link>
-              <Link to="/events" className="hover:text-indigo-600 transition">Events</Link>
-              <Link to="/places" className="hover:text-indigo-600 transition">Places</Link>
+              <Link to="/dashboard" className="hover:text-indigo-600 transition">{t('nav.dashboard')}</Link>
+              <Link to="/relocation" className="hover:text-indigo-600 transition">{t('nav.relocation')}</Link>
+              <Link to="/events" className="hover:text-indigo-600 transition">{t('nav.events')}</Link>
+              <Link to="/places" className="hover:text-indigo-600 transition">{t('nav.places')}</Link>
             </nav>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-500 hidden sm:block">Hello, {user?.name}</span>
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
+            {user?.name && (
+              <span className="text-sm text-slate-500 hidden sm:block">{t('nav.hello', { name: user.name })}</span>
+            )}
             <button 
               onClick={logout}
               className="text-sm font-medium text-slate-500 hover:text-red-600"
             >
-              Sign Out
+              {t('nav.signOut')}
             </button>
           </div>
         </div>
@@ -57,7 +62,7 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
       </main>
       <footer className="bg-white border-t border-slate-200 py-8 mt-8">
         <div className="max-w-7xl mx-auto px-4 text-center text-slate-400 text-sm">
-          &copy; 2024 ImmiPath Europe. Built by HellFire club.
+          {t('footer.text')}
         </div>
       </footer>
     </div>
@@ -73,6 +78,7 @@ const ProtectedRoute = ({ children }: { children?: React.ReactNode }) => {
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const { t } = useI18n();
 
   useEffect(() => {
     const currentUser = db.getCurrentUser();
@@ -90,7 +96,7 @@ export default function App() {
     setUser(null);
   };
 
-  if (loading) return <div className="flex h-screen items-center justify-center text-indigo-600">Loading...</div>;
+  if (loading) return <div className="flex h-screen items-center justify-center text-indigo-600">{t('common.loading')}</div>;
 
   return (
     <AppContext.Provider value={{ user, login, logout }}>

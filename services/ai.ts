@@ -52,15 +52,17 @@ export const AIService = {
   /**
    * Generates a relocation plan with structured JSON using OpenAI (gpt-4o-mini).
    */
-  async generateRelocationPlan(profile: RelocationProfile): Promise<RelocationStep[]> {
+  async generateRelocationPlan(profile: RelocationProfile, language: string = "en"): Promise<RelocationStep[]> {
     const prompt = `
       Create a detailed step-by-step relocation checklist for a person moving:
       FROM: ${profile.fromCountry}
       TO: ${profile.toCountry}
       PURPOSE: ${profile.purpose}
       CURRENTLY IN DESTINATION: ${profile.isAlreadyInDestination ? "Yes" : "No"}
+      LANGUAGE: ${language}
 
       Focus on visa, residence permits, registration, insurance, and housing. Keep language simple.
+      Write titles and descriptions in the specified LANGUAGE.
       Return a JSON object: { "steps": [...] } only.
       Each step should include: id (string, slug), title, description, priority (1 is highest), officialLinks (array of URLs or empty).
     `;
@@ -122,7 +124,8 @@ export const AIService = {
   async explainDocument(
     text?: string,
     imageBase64?: string,
-    imageMimeType: string = "image/jpeg"
+    imageMimeType: string = "image/jpeg",
+    language: string = "en"
   ): Promise<{ summary: string; actions: string[] }> {
     const userContent: any[] = [];
 
@@ -138,7 +141,7 @@ export const AIService = {
 
     userContent.push({
       type: "text",
-      text: "Summarize in at most 2 sentences and list 3-5 action items. Respond with JSON only.",
+      text: `Summarize in at most 2 sentences and list 3-5 action items. Use language: ${language}. Respond with JSON only.`,
     });
 
     const response = await getClient().chat.completions.create({
@@ -146,7 +149,7 @@ export const AIService = {
       messages: [
         {
           role: "system",
-          content: "You help newcomers understand bureaucratic documents. Be concise and actionable.",
+          content: "You help newcomers understand bureaucratic documents. Be concise and actionable. Respond in the user's language.",
         },
         { role: "user", content: userContent },
       ],
@@ -180,20 +183,20 @@ export const AIService = {
   /**
    * Suggests places without Maps grounding (pure OpenAI suggestions).
    */
-  async getCitySuggestions(city: string, budget: string, interests: string[]): Promise<any[]> {
+  async getCitySuggestions(city: string, budget: string, interests: string[], language: string = "en"): Promise<any[]> {
     const response = await getClient().chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
           content:
-            "Recommend inclusive places for immigrants (community centers, cafes, libraries, coworking, clubs). Include neighborhood hints.",
+            "Recommend inclusive places for immigrants (community centers, cafes, libraries, coworking, clubs). Include neighborhood hints. Respond in the requested language.",
         },
         {
           role: "user",
           content: `City: ${city}\nBudget: ${budget}\nInterests: ${interests.join(
             ", "
-          )}\nReturn 3 places with title, description, address/neighborhood, and optional reason.`,
+          )}\nLanguage: ${language}\nReturn 3 places with title, description, address/neighborhood, and optional reason.`,
         },
       ],
       response_format: {
