@@ -1,0 +1,9 @@
+{
+  "name": "ImmiPath Europe",
+  "description": "A comprehensive integration platform for immigrants in Europe, featuring AI-powered relocation planning, document explanation, and local community discovery.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
