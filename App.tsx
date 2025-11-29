@@ -119,7 +119,7 @@ export default function App() {
   if (loading) return <div className="flex h-screen items-center justify-center text-indigo-600">{t('common.loading')}</div>;
 
   return (
-    <AppContext.Provider value={{ user, login, logout, setUser }}>
+    <AppContext.Provider value={{ user, login, logout, setUser, updateUserProfile, deleteAccount }}>
       <HashRouter>
         <Layout>
           <Routes>
