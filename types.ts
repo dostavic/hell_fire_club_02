@@ -40,6 +40,8 @@ export interface RelocationStep {
   suggestedQuestions?: string[];
 }
 
+export type FamilyStatus = 'alone' | 'with_partner' | 'with_children' | 'with_partner_children';
+
 export interface RelocationProfile {
   id: string;
   userId: string;
@@ -49,6 +51,7 @@ export interface RelocationProfile {
   destinationCity?: string;
   purpose: 'work' | 'study' | 'protection' | 'family' | 'other';
   isAlreadyInDestination: boolean;
+  familyStatus: FamilyStatus;
   plan?: RelocationStep[];
 }
 

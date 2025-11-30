@@ -20,6 +20,8 @@ fastify.get('/', async (request, reply) => {
 
 // Register auth routes
 fastify.register(require('./routes/auth'), { prefix: '/api/auth' });
+fastify.register(require('./routes/places'), { prefix: '/api/places' });
+fastify.register(require('./routes/traditions'), { prefix: '/api/traditions' });
 
 // Register chat routes
 fastify.register(require('./routes/chat'), { prefix: '/api/chat' });

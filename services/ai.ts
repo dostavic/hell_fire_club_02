@@ -50,12 +50,21 @@ export const AIService = {
     language: string = "English"
   ): Promise<RelocationStep[]> {
     const isNotInDest = !profile.isAlreadyInDestination;
+    const familyStatus = profile.familyStatus || "alone";
+    const familyLabel =
+      familyStatus === "with_partner"
+        ? "moving with spouse/partner"
+        : familyStatus === "with_children"
+        ? "moving with children"
+        : familyStatus === "with_partner_children"
+        ? "moving with spouse/partner and children"
+        : "moving alone";
     const completion = await openai.chat.completions.create({
       model: TEXT_MODEL,
       messages: [
         {
           role: "system",
-          content: `You are a relocation assistant. Respond in ${language}. Keep steps concise. If the user is not already in the destination, the first step must be titled "Gather Required Documents" with type "checklist" and include concrete checklistItems. Always return a JSON object with a "steps" array only.`,
+          content: `You are a relocation assistant. Respond in ${language}. Keep steps concise. If the user is not already in the destination, the first step must be titled "Gather Required Documents" with type "checklist" and include concrete checklistItems. Account for who is relocating (alone, with spouse/partner, with children) and include dependent/family paperwork (e.g., marriage certificate, birth certificates, school enrollment). Always return a JSON object with a "steps" array only.`,
         },
         {
           role: "user",
@@ -66,6 +75,7 @@ export const AIService = {
             MOVING TO: ${profile.toCountry}
             PURPOSE: ${profile.purpose}
             CURRENTLY IN DESTINATION: ${isNotInDest ? "No" : "Yes"}
+            FAMILY STATUS: ${familyLabel}
             DESTINATION CITY: ${profile.destinationCity || "Not specified"}
 
             Rules:
@@ -136,10 +146,19 @@ export const AIService = {
     history: ChatHistoryItem[] = [],
     language: string = "English"
   ): Promise<string> {
+    const familyStatus = profile.familyStatus || "alone";
+    const familyLabel =
+      familyStatus === "with_partner"
+        ? "with spouse/partner"
+        : familyStatus === "with_children"
+        ? "with children"
+        : familyStatus === "with_partner_children"
+        ? "with spouse/partner and children"
+        : "alone";
     const messages = [
       {
         role: "system" as const,
-        content: `You are a helpful relocation assistant. The user is moving from ${profile.currentResidence} (citizen of ${profile.citizenship}) to ${profile.toCountry}. Respond in ${language}. Keep answers concise and specific to the user's context.`,
+        content: `You are a helpful relocation assistant. The user is moving from ${profile.currentResidence} (citizen of ${profile.citizenship}) to ${profile.toCountry}. They are relocating ${familyLabel}. Respond in ${language}. Keep answers concise and specific to the user's context.`,
       },
       ...mapHistory(history),
       {
