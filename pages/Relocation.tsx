@@ -12,20 +12,39 @@ const COUNTRIES = [
   "Turkey", "Canada", "Australia", "Other"
 ];
 
+// Simple markdown renderer for chat messages
+const renderMarkdown = (text: string) => {
+  // Replace **bold** with <strong>
+  let html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  // Replace *italic* with <em>
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  // Replace numbered lists
+  html = html.replace(/(\d+)\.\s/g, '<br/>$1. ');
+  // Replace bullet points
+  html = html.replace(/•\s/g, '<br/>• ');
+  // Add line breaks for paragraphs
+  html = html.replace(/\n\n/g, '<br/><br/>');
+  html = html.replace(/\n/g, '<br/>');
+  
+  return html;
+};
+
 const MiniChat = ({ 
   profile, 
   context, 
   title, 
   suggestions, 
   onClose,
-  language
+  language,
+  chatId
 }: { 
   profile: RelocationProfile, 
   context: string, 
   title: string, 
   suggestions?: string[], 
   onClose: () => void,
-  language: string
+  language: string,
+  chatId: string
 }) => {
   const [messages, setMessages] = useState<{role: 'user' | 'assistant', text: string}[]>([]);
   const [input, setInput] = useState('');
@@ -40,23 +59,73 @@ const MiniChat = ({
     scrollToBottom();
   }, [messages]);
 
+  // Load chat history on mount
+  useEffect(() => {
+    const loadHistory = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const response = await fetch(`/api/chat/${chatId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setMessages(data.messages || []);
+        }
+      } catch (err) {
+        console.error('Failed to load chat history:', err);
+      }
+    };
+
+    loadHistory();
+  }, [chatId]);
+
+  // Save chat history
+  const saveHistory = async (updatedMessages: {role: 'user' | 'assistant', text: string}[]) => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      await fetch(`/api/chat/${chatId}`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ messages: updatedMessages })
+      });
+    } catch (err) {
+      console.error('Failed to save chat history:', err);
+    }
+  };
+
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
     const userMsg = { role: 'user' as const, text };
-    setMessages(prev => [...prev, userMsg]);
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setInput('');
     setLoading(true);
 
     try {
-      const history = messages.map(m => ({ 
+      const history = updatedMessages.map(m => ({ 
         role: m.role, 
         content: m.text 
       }));
 
       const response = await AIService.chatAboutStep(profile, context, text, history, language);
-      setMessages(prev => [...prev, userMsg, { role: 'assistant', text: response }]);
+      const assistantMsg = { role: 'assistant' as const, text: response };
+      const finalMessages = [...updatedMessages, assistantMsg];
+      setMessages(finalMessages);
+      
+      // Save history after successful response
+      await saveHistory(finalMessages);
     } catch (e) {
-      setMessages(prev => [...prev, userMsg, { role: 'assistant', text: "Sorry, I encountered an error." }]);
+      const errorMsg = { role: 'assistant' as const, text: "Sorry, I encountered an error." };
+      const finalMessages = [...updatedMessages, errorMsg];
+      setMessages(finalMessages);
+      await saveHistory(finalMessages);
     } finally {
       setLoading(false);
     }
@@ -97,7 +166,11 @@ const MiniChat = ({
           {messages.map((msg, i) => (
             <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[80%] rounded-lg px-4 py-2 text-sm ${msg.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-700'}`}>
-                {msg.text}
+                {msg.role === 'assistant' ? (
+                  <div dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.text) }} />
+                ) : (
+                  msg.text
+                )}
               </div>
             </div>
           ))}
@@ -152,7 +225,7 @@ export default function Relocation() {
   const [showDocModal, setShowDocModal] = useState(false);
 
   // Chat State
-  const [activeChat, setActiveChat] = useState<{context: string, title: string, suggestions?: string[]} | null>(null);
+  const [activeChat, setActiveChat] = useState<{context: string, title: string, suggestions?: string[], chatId: string} | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -382,7 +455,8 @@ export default function Relocation() {
                       onClick={() => setActiveChat({ 
                         context: `Step: ${step.title}. Details: ${step.description}`, 
                         title: step.title, 
-                        suggestions: step.suggestedQuestions 
+                        suggestions: step.suggestedQuestions,
+                        chatId: `step-${step.id}`
                       })}
                       className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-full transition"
                       title="Open chat for this step"
@@ -412,7 +486,8 @@ export default function Relocation() {
                             onClick={() => setActiveChat({ 
                               context: `Document Item: ${item.text}. Part of step: ${step.title}`, 
                               title: `Doc: ${item.text}`,
-                              suggestions: [`What specific requirements for ${item.text}?`, `Where do I get ${item.text}?`] 
+                              suggestions: [`What specific requirements for ${item.text}?`, `Where do I get ${item.text}?`],
+                              chatId: `checklist-${step.id}-${item.id}`
                             })}
                             className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2"
                           >
@@ -423,7 +498,7 @@ export default function Relocation() {
                     </div>
                   )}
 
-                  {/* Official Links */}
+                  {/* Official Links
                   {step.officialLinks && step.officialLinks.length > 0 && (
                     <div className="mt-3 flex gap-2 flex-wrap">
                       {step.officialLinks.map((link, i) => {
@@ -442,7 +517,7 @@ export default function Relocation() {
                          );
                       })}
                     </div>
-                  )}
+                  )} */}
                 </div>
               </div>
             </div>
@@ -478,6 +553,7 @@ export default function Relocation() {
           suggestions={activeChat.suggestions}
           onClose={() => setActiveChat(null)}
           language={language}
+          chatId={activeChat.chatId}
         />
       )}
 
