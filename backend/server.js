@@ -23,6 +23,8 @@ fastify.get('/', async (request, reply) => {
 
 // Register auth routes
 fastify.register(require('./routes/auth'), { prefix: '/api/auth' });
+fastify.register(require('./routes/places'), { prefix: '/api/places' });
+fastify.register(require('./routes/traditions'), { prefix: '/api/traditions' });
 
 // Start server
 const start = async () => {

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { AppContext } from '../App';
 import { db } from '../services/mockDb';
 import { AIService } from '../services/ai';
-import { RelocationProfile, RelocationStep, TargetCountry, RelocationStepItem } from '../types';
+import { FamilyStatus, RelocationProfile, RelocationStep, TargetCountry, RelocationStepItem } from '../types';
 import { useI18n } from '../services/i18n';
 
 const COUNTRIES = [
@@ -141,6 +141,7 @@ export default function Relocation() {
   const [destinationCity, setDestinationCity] = useState('');
   const [purpose, setPurpose] = useState<any>('work');
   const [inDest, setInDest] = useState(false);
+  const [familyStatus, setFamilyStatus] = useState<FamilyStatus>('alone');
 
   // Document Explainer State
   const [docText, setDocText] = useState('');
@@ -178,6 +179,7 @@ export default function Relocation() {
       destinationCity: destinationCity.trim(),
       purpose,
       isAlreadyInDestination: inDest,
+      familyStatus,
       plan: []
     };
 
@@ -323,6 +325,56 @@ export default function Relocation() {
               <option value="protection">{t('relocation.purpose.protection')}</option>
               <option value="family">{t('relocation.purpose.family')}</option>
             </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-slate-700">{t('relocation.family.title')}</label>
+            <div className="mt-2 grid sm:grid-cols-2 gap-3">
+              <label className="flex items-center gap-3 border border-slate-200 rounded-md px-3 py-2 cursor-pointer hover:border-indigo-300">
+                <input 
+                  type="radio" 
+                  name="familyStatus" 
+                  value="alone"
+                  checked={familyStatus === 'alone'}
+                  onChange={() => setFamilyStatus('alone')}
+                  className="text-indigo-600"
+                />
+                <span className="text-sm text-slate-700">{t('relocation.family.alone')}</span>
+              </label>
+              <label className="flex items-center gap-3 border border-slate-200 rounded-md px-3 py-2 cursor-pointer hover:border-indigo-300">
+                <input 
+                  type="radio" 
+                  name="familyStatus" 
+                  value="with_partner"
+                  checked={familyStatus === 'with_partner'}
+                  onChange={() => setFamilyStatus('with_partner')}
+                  className="text-indigo-600"
+                />
+                <span className="text-sm text-slate-700">{t('relocation.family.partner')}</span>
+              </label>
+              <label className="flex items-center gap-3 border border-slate-200 rounded-md px-3 py-2 cursor-pointer hover:border-indigo-300">
+                <input 
+                  type="radio" 
+                  name="familyStatus" 
+                  value="with_children"
+                  checked={familyStatus === 'with_children'}
+                  onChange={() => setFamilyStatus('with_children')}
+                  className="text-indigo-600"
+                />
+                <span className="text-sm text-slate-700">{t('relocation.family.children')}</span>
+              </label>
+              <label className="flex items-center gap-3 border border-slate-200 rounded-md px-3 py-2 cursor-pointer hover:border-indigo-300">
+                <input 
+                  type="radio" 
+                  name="familyStatus" 
+                  value="with_partner_children"
+                  checked={familyStatus === 'with_partner_children'}
+                  onChange={() => setFamilyStatus('with_partner_children')}
+                  className="text-indigo-600"
+                />
+                <span className="text-sm text-slate-700">{t('relocation.family.partnerChildren')}</span>
+              </label>
+            </div>
           </div>
           <div className="flex items-center">
             <input 

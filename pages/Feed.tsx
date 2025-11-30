@@ -286,6 +286,9 @@ export default function App() {
   const [places, setPlaces] = useState([]);
   const [placesLoading, setPlacesLoading] = useState(false);
   const [placesError, setPlacesError] = useState('');
+  const [traditions, setTraditions] = useState([]);
+  const [traditionsLoading, setTraditionsLoading] = useState(false);
+  const [traditionsError, setTraditionsError] = useState('');
 
   // Filter logic
   const articles = ARTICLES_DB[selectedCountry] || [];
@@ -298,12 +301,16 @@ export default function App() {
     if (!city) return;
     setPlacesLoading(true);
     setPlacesError('');
-    fetch(`/api/places?city=${encodeURIComponent(city)}`)
+    const params = new URLSearchParams({ city });
+    if (activeCategory === 'history') {
+      params.set('type', 'historic');
+    }
+    fetch(`/api/places?${params.toString()}`)
       .then(res => res.json())
       .then(data => setPlaces(data.places || []))
       .catch(() => setPlacesError('Не вдалось отримати місця для цього міста.'))
       .finally(() => setPlacesLoading(false));
-  }, [selectedCountry]);
+  }, [selectedCountry, activeCategory]);
 
   const handleCountryChange = (e) => setSelectedCountry(e.target.value);
 
@@ -314,6 +321,18 @@ export default function App() {
   const handlePlaceAI = (place) => {
     setAiQuery({ query: `Розкажи про ${place.name}`, context: { title: place.name, location: place.address } });
   };
+
+  useEffect(() => {
+    if (activeCategory !== 'traditions') return;
+    const countryName = COUNTRIES.find(c => c.id === selectedCountry)?.name || '';
+    setTraditionsLoading(true);
+    setTraditionsError('');
+    fetch(`/api/traditions?country=Poland&lang=pl`)
+      .then(res => res.json())
+      .then(data => setTraditions(data.items || []))
+      .catch(() => setTraditionsError('Не вдалося завантажити традиції.'))
+      .finally(() => setTraditionsLoading(false));
+  }, [activeCategory, selectedCountry]);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
@@ -438,7 +457,39 @@ export default function App() {
         </div>
 
         {/* Grid Layout */}
-        {filteredArticles.length > 0 ? (
+        {activeCategory === 'traditions' ? (
+          traditionsLoading ? (
+            <div className="text-center py-16 text-slate-500">Завантажуємо традиції...</div>
+          ) : traditionsError ? (
+            <div className="text-center py-16 text-red-500 text-sm">{traditionsError}</div>
+          ) : traditions.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {traditions.map(item => (
+                <div key={item.title} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                  {item.thumbnail && (
+                    <img src={`/api/places/photo?url=${encodeURIComponent(item.thumbnail)}`} alt={item.title} className="h-40 w-full object-cover" />
+                  )}
+                  <div className="p-4 flex flex-col gap-2 flex-1">
+                    <h4 className="font-semibold text-slate-900 line-clamp-2">{item.title}</h4>
+                    {item.description && <p className="text-xs text-slate-500">{item.description}</p>}
+                    <p className="text-sm text-slate-600 line-clamp-3">{item.extract}</p>
+                    <div className="mt-auto pt-2 flex items-center justify-between">
+                      <a href={item.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">Читати у Wiki</a>
+                      <button
+                        onClick={() => setAiQuery({ query: `Коротко поясни цю традицію: ${item.title}`, context: { title: item.title, location: '' } })}
+                        className="text-sm inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700 font-semibold"
+                      >
+                        <Sparkles size={14} /> AI
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16 text-slate-500 text-sm">Нічого не знайдено.</div>
+          )
+        ) : filteredArticles.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredArticles.map(article => (
               <ArticleCard 

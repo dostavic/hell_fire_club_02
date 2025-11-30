@@ -1,4 +1,4 @@
-import { User, Event, Place, RelocationProfile, UserRole, TargetCountry, RelocationStep } from '../types';
+import { User, Event, Place, RelocationProfile, UserRole, TargetCountry, RelocationStep, FamilyStatus } from '../types';
 
 // Helper to get a future date ISO string
 const getFutureDate = (daysToAdd: number) => {
@@ -169,7 +169,15 @@ class MockDb {
   async getRelocationProfile(userId: string): Promise<RelocationProfile | null> {
     await delay(300);
     const profiles = this.get<RelocationProfile[]>('relocationProfiles', []);
-    return profiles.find(p => p.userId === userId) || null;
+    const profile = profiles.find(p => p.userId === userId) || null;
+
+    // Backfill missing familyStatus for older profiles
+    if (profile && !profile.familyStatus) {
+      profile.familyStatus = 'alone' as FamilyStatus;
+      await this.saveRelocationProfile(profile);
+    }
+
+    return profile;
   }
 
   async saveRelocationProfile(profile: RelocationProfile): Promise<RelocationProfile> {
