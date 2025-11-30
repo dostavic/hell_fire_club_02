@@ -29,6 +29,51 @@ const renderMarkdown = (text: string) => {
   return html;
 };
 
+const readFileAsBase64 = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      const base64 = result.includes(",") ? result.split(",")[1] : result;
+      resolve(base64);
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+// Extracts text from the first few pages of a PDF so the AI can read it.
+const extractTextFromPdf = async (file: File) => {
+  const [{ getDocument, GlobalWorkerOptions }, workerSrcModule] = await Promise.all([
+    import("pdfjs-dist"),
+    import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
+  ]);
+
+  const workerSrc =
+    (workerSrcModule as { default?: string }).default || (workerSrcModule as unknown as string);
+  if (workerSrc) {
+    GlobalWorkerOptions.workerSrc = workerSrc;
+  }
+
+  const pdf = await getDocument({ data: await file.arrayBuffer() }).promise;
+  const pagesToScan = Math.min(pdf.numPages, 3);
+  let combinedText = "";
+
+  for (let pageNum = 1; pageNum <= pagesToScan; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const content = await page.getTextContent();
+    const pageText = content.items
+      .map((item: any) => ("str" in item ? item.str : ""))
+      .join(" ")
+      .trim();
+
+    if (pageText) {
+      combinedText += (combinedText ? "\n\n" : "") + pageText;
+    }
+  }
+
+  return combinedText;
+};
+
 const MiniChat = ({ 
   profile, 
   context, 
@@ -210,7 +255,7 @@ export default function Relocation() {
   // Form State
   const [citizenship, setCitizenship] = useState('Ukraine');
   const [currentResidence, setCurrentResidence] = useState('Ukraine');
-  const [toCountry, setToCountry] = useState<TargetCountry>(TargetCountry.GERMANY);
+  const [toCountry, setToCountry] = useState<TargetCountry | ''>('');
   const [destinationCity, setDestinationCity] = useState('');
   const [purpose, setPurpose] = useState<any>('work');
   const [inDest, setInDest] = useState(false);
@@ -223,6 +268,7 @@ export default function Relocation() {
   const [docFileName, setDocFileName] = useState<string>('');
   const [docResult, setDocResult] = useState<{ summary: string, actions: string[], isDocument?: boolean } | null>(null);
   const [docLoading, setDocLoading] = useState(false);
+  const [docParsing, setDocParsing] = useState(false);
   const [showDocModal, setShowDocModal] = useState(false);
 
   // Chat State
@@ -240,6 +286,10 @@ export default function Relocation() {
   const handleCreateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    if (!toCountry) {
+      alert(t('relocation.toPlaceholderSelect'));
+      return;
+    }
     
     setLoadingAI(true);
     
@@ -248,7 +298,7 @@ export default function Relocation() {
       userId: user.id,
       citizenship,
       currentResidence,
-      toCountry,
+      toCountry: toCountry as TargetCountry,
       destinationCity: destinationCity.trim(),
       purpose,
       isAlreadyInDestination: inDest,
@@ -296,7 +346,7 @@ export default function Relocation() {
     await db.saveRelocationProfile({ ...profile, plan: updatedPlan });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -306,24 +356,56 @@ export default function Relocation() {
       return;
     }
 
-    setDocFileName(file.name);
-    setDocMimeType(file.type);
+    setDocResult(null);
+    setDocBase64(null);
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result as string;
-      const base64 = result.split(',')[1];
+    const mimeType = file.type || 'application/octet-stream';
+    const isPdf = mimeType.includes('pdf') || file.name.toLowerCase().endsWith('.pdf');
+    setDocFileName(file.name);
+    setDocMimeType(mimeType);
+
+    try {
+      const base64 = await readFileAsBase64(file);
       setDocBase64(base64);
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Failed to read file", err);
+      alert("Could not read the file. Please try again.");
+      return;
+    }
+
+    if (isPdf) {
+      setDocParsing(true);
+      try {
+        const extractedText = await extractTextFromPdf(file);
+        if (extractedText) {
+          const trimmed = extractedText.slice(0, 8000);
+          setDocText(trimmed);
+        } else {
+          alert("Could not read text from the PDF. Please ensure the document is clear.");
+        }
+      } catch (err) {
+        console.error("Failed to parse PDF", err);
+        alert("Could not read text from the PDF. Please upload a clearer file or paste the text manually.");
+      } finally {
+        setDocParsing(false);
+      }
+    }
   };
 
   const handleExplainDocument = async () => {
     if (!docText && !docBase64) return;
+    const isPdf = docMimeType.toLowerCase().includes('pdf');
+    if (docParsing) return;
+    if (isPdf && !docText.trim()) {
+      alert("We couldn't extract text from the PDF. Please upload a clearer file or paste the text.");
+      return;
+    }
+
+    const imageData = docMimeType.startsWith('image/') ? docBase64 || undefined : undefined;
     setDocLoading(true);
     setDocResult(null);
     try {
-      const result = await AIService.explainDocument(docText, docBase64 || undefined, docMimeType, language);
+      const result = await AIService.explainDocument(docText, imageData, docMimeType, language);
       setDocResult(result);
     } catch (e) {
       console.error(e);
@@ -367,10 +449,12 @@ export default function Relocation() {
             <div>
               <label className="block text-sm font-medium text-slate-700">Where are you moving to?</label>
               <select 
+                required
                 className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900"
                 value={toCountry}
                 onChange={e => setToCountry(e.target.value as TargetCountry)}
               >
+                <option value="">{t('relocation.toPlaceholderSelect')}</option>
                 {Object.values(TargetCountry).map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
@@ -657,7 +741,13 @@ export default function Relocation() {
                              </div>
                           )}
                           <button 
-                            onClick={() => { setDocBase64(null); setDocMimeType('image/jpeg'); setDocFileName(''); }}
+                            onClick={() => { 
+                              setDocBase64(null); 
+                              setDocMimeType('image/jpeg'); 
+                              setDocFileName(''); 
+                              setDocText('');
+                              setDocResult(null);
+                            }}
                             className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-sm hover:bg-red-600"
                             title={t('relocation.doc.removeImage')}
                           >
@@ -665,12 +755,20 @@ export default function Relocation() {
                           </button>
                        </div>
                      )}
+                     {docParsing && (
+                       <p className="text-xs text-slate-500">Extracting text from the PDF...</p>
+                     )}
                    </div>
                 </div>
 
                 <button 
                   onClick={handleExplainDocument}
-                  disabled={docLoading || (!docText && !docBase64)}
+                  disabled={
+                    docLoading ||
+                    docParsing ||
+                    (!docText && !docBase64) ||
+                    (docMimeType.toLowerCase().includes('pdf') && !docText.trim())
+                  }
                   className="w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 disabled:opacity-50 mt-4 font-medium transition"
                 >
                   {docLoading ? t('relocation.doc.analyzing') : t('relocation.doc.analyze')}
