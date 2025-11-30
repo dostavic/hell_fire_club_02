@@ -55,6 +55,14 @@ export interface RelocationProfile {
   plan?: RelocationStep[];
 }
 
+export interface ConsulateInfo {
+  name: string;
+  address: string;
+  mapLink: string;
+  website?: string;
+  note?: string;
+}
+
 export interface Event {
   id: string;
   title: string;
