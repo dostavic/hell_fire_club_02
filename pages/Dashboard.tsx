@@ -205,10 +205,8 @@ export default function Dashboard() {
           {profile ? (
             <div className="mt-4">
               <div className="flex justify-between text-sm mb-1">
-                {/* TODO: add i18n */}
-
-                <span className="font-medium text-slate-700">{progress}% Completed</span>
-                <span className="text-slate-500">{completedSteps}/{totalSteps} steps</span>
+                <span className="font-medium text-slate-700">{t('dashboard.progressLabel', { percent: progress })}</span>
+                <span className="text-slate-500">{t('dashboard.stepsLabel', { done: completedSteps, total: totalSteps })}</span>
               </div>
               <div className="w-full bg-slate-200 rounded-full h-2.5">
                 <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
@@ -220,11 +218,11 @@ export default function Dashboard() {
                     disabled 
                     className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium cursor-not-allowed opacity-90"
                   >
-                    All tasks done
+                    {t('dashboard.allDone')}
                   </button>
                 ) : (
                   <Link to="/relocation" className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-md text-sm font-medium hover:bg-indigo-100 transition">
-                    Continue Tasks
+                    {t('dashboard.continue')}
                   </Link>
                 )}
               </div>

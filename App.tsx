@@ -51,11 +51,9 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
           </div>
           <div className="flex items-center gap-4">
             <LanguageSwitcher />
-            {user?.name && (
               <Link to="/profile" className="text-sm font-medium text-slate-500 hidden sm:block hover:text-indigo-600 transition">
-                {t('nav.hello', { name: user.name })}
+                My Profile
               </Link>
-            )}
             <button 
               onClick={logout}
               className="text-sm font-medium text-slate-500 hover:text-red-600"

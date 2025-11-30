@@ -12,6 +12,7 @@ import {
   Globe,
   X
 } from 'lucide-react';
+import { useI18n } from '../services/i18n';
 
 // --- MOCK DATA ---
 // В реальному додатку це приходитиме з вашого API або Firebase
@@ -82,7 +83,7 @@ const ARTICLES_DB = {
 // --- COMPONENTS ---
 
 // 1. Компонент Картки Статті
-const ArticleCard = ({ article, onClick }) => (
+const ArticleCard = ({ article, onClick, t }) => (
   <div 
     onClick={onClick}
     className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full"
@@ -101,7 +102,7 @@ const ArticleCard = ({ article, onClick }) => (
       <div className="flex items-center text-xs text-slate-500 mb-2 space-x-2">
         <span className="flex items-center"><MapPin size={12} className="mr-1"/> {article.location}</span>
         <span>•</span>
-        <span>{article.readTime} читання</span>
+        <span>{article.readTime} {t('feed.reading')}</span>
       </div>
       <h3 className="text-lg font-bold text-slate-800 mb-2 leading-tight">{article.title}</h3>
       <p className="text-sm text-slate-600 line-clamp-3 mb-4 flex-grow">{article.summary}</p>
@@ -116,7 +117,7 @@ const ArticleCard = ({ article, onClick }) => (
 );
 
 // 2. Модальне вікно для читання статті + AI Features
-const ArticleReader = ({ article, onClose, onAskAI }) => {
+const ArticleReader = ({ article, onClose, onAskAI, t }) => {
   if (!article) return null;
 
   return (
@@ -157,10 +158,10 @@ const ArticleReader = ({ article, onClose, onAskAI }) => {
               <div className="bg-indigo-600 p-1.5 rounded-lg mr-3">
                 <Sparkles size={18} className="text-white" />
               </div>
-              <h4 className="font-semibold text-indigo-900">AI Культурний Асистент</h4>
+              <h4 className="font-semibold text-indigo-900">{t('feed.aiAssistant')}</h4>
             </div>
             <p className="text-sm text-indigo-700 mb-4">
-              Є питання про цю традицію чи місце? Спитайте AI для глибшого розуміння.
+              {t('feed.aiAssistantDesc')}
             </p>
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
               <button onClick={() => onAskAI("Поясни простими словами для дитини")} className="whitespace-nowrap px-3 py-1.5 bg-white text-indigo-600 text-sm font-medium border border-indigo-200 rounded-lg hover:bg-indigo-50 transition-colors">
@@ -187,7 +188,7 @@ const ArticleReader = ({ article, onClose, onAskAI }) => {
             </button>
           </div>
           <button className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm">
-            Я відвідав це місце
+            {t('feed.visitedPlace')}
           </button>
         </div>
       </div>
@@ -196,10 +197,10 @@ const ArticleReader = ({ article, onClose, onAskAI }) => {
 };
 
 // 3. AI Chat Context Modal
-const AIChatOverlay = ({ query, context, onClose }) => {
+const AIChatOverlay = ({ query, context, onClose, t }) => {
   const [messages, setMessages] = useState([
     { role: 'user', text: query },
-    { role: 'assistant', text: 'Думаю...' }
+    { role: 'assistant', text: t('feed.thinking') }
   ]);
 
   // Fetch real AI answer from backend (OpenAI proxy)
@@ -216,14 +217,14 @@ const AIChatOverlay = ({ query, context, onClose }) => {
         if (aborted) return;
         setMessages(prev => {
           const newMsgs = [...prev];
-          newMsgs[1] = { role: 'assistant', text: data.text || 'Немає відповіді.' };
+          newMsgs[1] = { role: 'assistant', text: data.text || t('feed.noAnswer') };
           return newMsgs;
         });
       } catch (err) {
         if (aborted) return;
         setMessages(prev => {
           const newMsgs = [...prev];
-          newMsgs[1] = { role: 'assistant', text: 'Не вдалося отримати відповідь. Спробуйте ще раз.' };
+          newMsgs[1] = { role: 'assistant', text: t('feed.responseError') };
           return newMsgs;
         });
       }
@@ -240,7 +241,7 @@ const AIChatOverlay = ({ query, context, onClose }) => {
         <div className="bg-indigo-600 p-4 text-white flex justify-between items-center">
           <div className="flex items-center">
             <Sparkles size={18} className="mr-2" />
-            <span className="font-bold">AI Гід</span>
+            <span className="font-bold">{t('feed.aiGuide')}</span>
           </div>
           <button onClick={onClose}><X size={18}/></button>
         </div>
@@ -263,7 +264,7 @@ const AIChatOverlay = ({ query, context, onClose }) => {
           <div className="relative">
             <input 
               type="text" 
-              placeholder="Спитайте ще щось..." 
+              placeholder={t('feed.askMore')} 
               className="w-full bg-slate-100 border-none rounded-full py-2.5 pl-4 pr-10 text-sm focus:ring-2 focus:ring-indigo-500"
             />
             <button className="absolute right-2 top-2 p-1 bg-indigo-600 rounded-full text-white">
@@ -279,6 +280,7 @@ const AIChatOverlay = ({ query, context, onClose }) => {
 // --- MAIN APP COMPONENT ---
 
 export default function App() {
+  const { t } = useI18n();
   const [selectedCountry, setSelectedCountry] = useState('pl');
   const [activeCategory, setActiveCategory] = useState('all');
   const [selectedArticle, setSelectedArticle] = useState(null);
@@ -350,7 +352,7 @@ export default function App() {
           </div>
 
           <div className="flex items-center space-x-3">
-            <span className="text-sm text-slate-500 hidden sm:inline">Я зараз в:</span>
+            <span className="text-sm text-slate-500 hidden sm:inline">{t('feed.currentLocation')}</span>
             <div className="relative">
               <select 
                 value={selectedCountry}
@@ -396,12 +398,12 @@ export default function App() {
         <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-6 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-xs uppercase tracking-wide text-slate-400">Місця навколо</p>
+              <p className="text-xs uppercase tracking-wide text-slate-400">{t('feed.placesAround')}</p>
               <h3 className="text-lg font-bold text-slate-800">
-                Топ місця в {COUNTRIES.find(c => c.id === selectedCountry)?.name}
+                {t('feed.topPlacesIn', { country: COUNTRIES.find(c => c.id === selectedCountry)?.name })}
               </h3>
             </div>
-            {placesLoading && <span className="text-xs text-indigo-600">Завантажуємо...</span>}
+            {placesLoading && <span className="text-xs text-indigo-600">{t('common.loading')}</span>}
           </div>
           {placesError && <p className="text-sm text-red-500 mb-3">{placesError}</p>}
 
@@ -441,7 +443,7 @@ export default function App() {
               ))}
             </div>
           ) : (
-            !placesLoading && <p className="text-sm text-slate-500">Немає результатів для цього міста.</p>
+            !placesLoading && <p className="text-sm text-slate-500">{t('feed.noResults')}</p>
           )}
         </div>
         
@@ -449,9 +451,9 @@ export default function App() {
         <div className="bg-gradient-to-r from-indigo-500 to-violet-600 rounded-2xl p-6 mb-8 text-white shadow-lg relative overflow-hidden">
           <div className="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
           <div className="relative z-10">
-            <h2 className="text-2xl font-bold mb-2">Відкривай культуру {COUNTRIES.find(c => c.id === selectedCountry)?.name} </h2>
+            <h2 className="text-2xl font-bold mb-2">{t('feed.discoverCulture', { country: COUNTRIES.find(c => c.id === selectedCountry)?.name })}</h2>
             <p className="text-indigo-100 max-w-lg">
-              Досліджуй історію, традиції та приховані перлини. Використовуй AI, щоб зрозуміти контекст подій.
+              {t('feed.welcomeDesc')}
             </p>
           </div>
         </div>
@@ -459,7 +461,7 @@ export default function App() {
         {/* Grid Layout */}
         {activeCategory === 'traditions' ? (
           traditionsLoading ? (
-            <div className="text-center py-16 text-slate-500">Завантажуємо традиції...</div>
+            <div className="text-center py-16 text-slate-500">{t('common.loading')}</div>
           ) : traditionsError ? (
             <div className="text-center py-16 text-red-500 text-sm">{traditionsError}</div>
           ) : traditions.length > 0 ? (
@@ -474,7 +476,7 @@ export default function App() {
                     {item.description && <p className="text-xs text-slate-500">{item.description}</p>}
                     <p className="text-sm text-slate-600 line-clamp-3">{item.extract}</p>
                     <div className="mt-auto pt-2 flex items-center justify-between">
-                      <a href={item.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">Читати у Wiki</a>
+                      <a href={item.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">{t('feed.readOnWiki')}</a>
                       <button
                         onClick={() => setAiQuery({ query: `Коротко поясни цю традицію: ${item.title}`, context: { title: item.title, location: '' } })}
                         className="text-sm inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700 font-semibold"
@@ -487,7 +489,7 @@ export default function App() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-16 text-slate-500 text-sm">Нічого не знайдено.</div>
+            <div className="text-center py-16 text-slate-500 text-sm">{t('feed.nothingFound')}</div>
           )
         ) : filteredArticles.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -496,6 +498,7 @@ export default function App() {
                 key={article.id} 
                 article={article} 
                 onClick={() => setSelectedArticle(article)}
+                t={t}
               />
             ))}
           </div>
@@ -504,9 +507,9 @@ export default function App() {
             <div className="mx-auto w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
               <BookOpen size={24} className="text-slate-300" />
             </div>
-            <p>Ще немає статей для цієї категорії або країни.</p>
+            <p>{t('feed.noArticles')}</p>
             <button onClick={() => setSelectedCountry('pl')} className="text-indigo-600 text-sm font-medium mt-2 hover:underline">
-              Спробуйте "Польща" для демо
+              {t('feed.tryPoland')}
             </button>
           </div>
         )}
@@ -521,6 +524,7 @@ export default function App() {
             setAiQuery(null);
           }}
           onAskAI={handleAskAI}
+          t={t}
         />
       )}
 
@@ -529,6 +533,7 @@ export default function App() {
           query={aiQuery.query} 
           context={aiQuery.context}
           onClose={() => setAiQuery(null)}
+          t={t}
         />
       )}
       

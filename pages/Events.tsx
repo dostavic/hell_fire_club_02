@@ -64,12 +64,14 @@ export default function Events() {
     <div className="space-y-8">
       <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
-          {/* TODO: add i18n */}
-           <h1 className="text-2xl font-bold text-slate-900">Community Events</h1>
+           <h1 className="text-2xl font-bold text-slate-900">{t('events.title')}</h1>
            <p className="text-slate-500">
              {profile 
-               ? `Showing upcoming events in ${profile.toCountry}${profile.destinationCity ? `, ${profile.destinationCity}` : ''}`
-               : "Find support groups, language clubs, and cultural activities."
+               ? t('events.showingUpcoming', { 
+                   country: profile.toCountry, 
+                   city: profile.destinationCity ? `, ${profile.destinationCity}` : '' 
+                 })
+               : t('events.subtitle')
              }
            </p>
         </div>
@@ -124,16 +126,14 @@ export default function Events() {
           </div>
         ) : (
           <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-300">
-            {/* TODO: add i18n */}
-            <p className="text-slate-500 mb-4">No upcoming events found matching your criteria.</p>
+            <p className="text-slate-500 mb-4">{t('events.noEvents')}</p>
             {!profile && (
               <Link to="/relocation" className="text-indigo-600 font-medium hover:underline">
-                {/* TODO: add i18n */}
-                Create a relocation profile to see events near you.
+                {t('events.createProfile')}
               </Link>
             )}
             {profile && (
-              <p className="text-sm text-slate-400">Try changing your filter or check back later.</p>
+              <p className="text-sm text-slate-400">{t('events.tryFilter')}</p>
             )}
           </div>
         )}
