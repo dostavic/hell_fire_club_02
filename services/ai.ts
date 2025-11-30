@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { RelocationProfile, RelocationStep } from "../types";
+import { ConsulateInfo, RelocationProfile, RelocationStep } from "../types";
 
 // NOTE: In a real app, never expose API keys on the client.
 // This is kept for the client-side demo only.
@@ -29,6 +29,33 @@ const parseJson = <T>(raw: string, fallback: T): T => {
   }
 };
 
+const tFallback = (language: string, english: string) => {
+  if (language.startsWith("uk")) return "Перевірте, будь ласка, через пошук на карті; результат може відрізнятись.";
+  if (language.startsWith("de")) return "Bitte prüfen Sie über die Kartensuche; das Ergebnis kann je nach Region variieren.";
+  if (language.startsWith("ro")) return "Vă rugăm verificați prin căutarea pe hartă; rezultatul poate varia după regiune.";
+  if (language.startsWith("cs")) return "Ověřte prosím pomocí vyhledávání na mapě; výsledek se může lišit podle regionu.";
+  if (language.startsWith("sk")) return "Prosím overte cez vyhľadávanie na mape; výsledok sa môže líšiť podľa regiónu.";
+  return english;
+};
+
+const mapLocales: Record<string, { hl?: string; gl?: string }> = {
+  germany: { hl: "de", gl: "DE" },
+  austria: { hl: "de", gl: "AT" },
+  "czech republic": { hl: "cs", gl: "CZ" },
+  slovakia: { hl: "sk", gl: "SK" },
+  romania: { hl: "ro", gl: "RO" },
+  ukraine: { hl: "uk", gl: "UA" },
+  poland: { hl: "pl", gl: "PL" },
+  hungary: { hl: "hu", gl: "HU" },
+};
+
+const makeMapLink = (query: string, country: string) => {
+  const locale = mapLocales[country.toLowerCase()] || {};
+  const params = [`query=${encodeURIComponent(query)}`];
+  if (locale.hl) params.push(`hl=${locale.hl}`);
+  if (locale.gl) params.push(`gl=${locale.gl}`);
+  return `https://www.google.com/maps/search/?api=1&${params.join("&")}`;
+};
 const mapHistory = (history: ChatHistoryItem[] = []) =>
   history
     .map((h) => {
@@ -172,12 +199,18 @@ export const AIService = {
     if (text) {
       contentParts.push({ type: "text", text: `Provided text: ${text}` });
     }
-    if (fileBase64) {
+    if (fileBase64 && mimeType.startsWith("image/")) {
       contentParts.push({
         type: "image_url",
         image_url: {
           url: `data:${mimeType};base64,${fileBase64}`,
         },
+      });
+    } else if (fileBase64) {
+      // Avoid sending non-image blobs as image_url (e.g., PDFs cause API errors)
+      contentParts.push({
+        type: "text",
+        text: `A file (${mimeType}) was provided. Use the text above to interpret its contents.`,
       });
     }
     contentParts.push({
@@ -255,6 +288,94 @@ export const AIService = {
       description: s.description || "",
       address: s.address || s.link || "",
     }));
+  },
+
+  /**
+   * Finds the nearest consulate based on profile data.
+   */
+  async findNearestConsulate(
+    profile: RelocationProfile,
+    language: string = "English"
+  ): Promise<ConsulateInfo> {
+    const consulateCountry = profile.citizenship;
+    const locationCountry = profile.isAlreadyInDestination ? profile.toCountry : profile.currentResidence;
+    const cityTarget = profile.isAlreadyInDestination
+      ? profile.destinationCity?.trim() || profile.toCountry
+      : profile.destinationCity?.trim() || locationCountry;
+    const cityQuery = `${consulateCountry} consulate in ${cityTarget}, ${locationCountry}`;
+    const countryQuery = `${consulateCountry} consulate in ${locationCountry}`;
+    const nearQuery = `${consulateCountry} consulate near ${cityTarget || locationCountry}`;
+    const fallbackMapLinkCity = makeMapLink(cityQuery, locationCountry);
+    const fallbackMapLinkCountry = makeMapLink(countryQuery, locationCountry);
+    const fallbackMapLinkNear = makeMapLink(nearQuery, locationCountry);
+
+    const completion = await openai.chat.completions.create({
+      model: TEXT_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: `You are a relocation assistant. Respond in ${language}. Find a consulate/embassy of the traveler's citizenship located in the specified location country only. If unsure, prefer the main embassy in that country's capital. If you cannot provide a confident address in that location country, return a Google Maps search link only. Return JSON only: { "name": string, "address": string, "mapLink": string, "website": string, "note": string }.`,
+        },
+        {
+          role: "user",
+          content: `
+            Find the nearest consulate for a traveler.
+            Citizenship (whose consulate they need): ${consulateCountry}
+            Location country where the consulate must be: ${locationCountry}
+            Target city or area: ${cityTarget}
+            Provide a precise name and address in the location country if known, a Google Maps link (or search link), and an official website if available.
+          `,
+        },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+    });
+
+    const parsed = parseJson<Partial<ConsulateInfo>>(
+      completion.choices[0].message?.content || "{}",
+      {}
+    );
+
+    const address = parsed.address || "";
+    const lowerAddress = address.toLowerCase();
+    const locationLower = locationCountry.toLowerCase();
+    const cityLower = cityTarget.toLowerCase();
+    const lowerMap = (parsed.mapLink || "").toLowerCase();
+    const mapMatches = lowerMap.includes(locationLower);
+    const preciseQuery = `${consulateCountry} consulate, ${address || cityTarget}, ${locationCountry}`;
+    const safeMapLink = makeMapLink(preciseQuery, locationCountry);
+    const aiMapLink = mapMatches && parsed.mapLink ? parsed.mapLink : safeMapLink;
+    const isConfident =
+      lowerAddress.includes(locationLower) ||
+      (cityLower ? lowerAddress.includes(cityLower) : false);
+
+    if (!isConfident) {
+      return {
+        name: `${consulateCountry} consulate`,
+        address:
+          address ||
+          tFallback(
+            language,
+            "Could not verify an exact consulate address in this country. Showing the closest option we could find."
+          ),
+        mapLink: fallbackMapLinkNear,
+        website: parsed.website,
+        note:
+          parsed.note ||
+          tFallback(
+            language,
+            "If there is no consulate in this country, this link points to the nearest one. Please confirm via the map search."
+          ),
+      };
+    }
+
+    return {
+      name: parsed.name || `${consulateCountry} consulate`,
+      address: parsed.address || "Look up the nearest consulate using the map link.",
+      mapLink: aiMapLink,
+      website: parsed.website,
+      note: parsed.note,
+    };
   },
 
   /**
