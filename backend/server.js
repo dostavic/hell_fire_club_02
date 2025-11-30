@@ -1,6 +1,9 @@
+const path = require('path');
 const fastify = require('fastify')({ logger: true });
 const { Pool } = require('pg');
-require('dotenv').config();
+
+// Explicitly load env variables from backend/.env.local (or .env) so DB config is available
+require('dotenv').config({ path: path.join(__dirname, '.env.local') });
 
 // Register plugins
 fastify.register(require('@fastify/cors'), {
