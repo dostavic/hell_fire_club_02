@@ -47,14 +47,15 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
               <Link to="/relocation" className="hover:text-indigo-600 transition">{t('nav.relocation')}</Link>
               <Link to="/events" className="hover:text-indigo-600 transition">{t('nav.events')}</Link>
               <Link to="/places" className="hover:text-indigo-600 transition">{t('nav.places')}</Link>
-              <Link to="/feed" className="hover:text-indigo-600 transition">{t('nav.feed')}</Link>
             </nav>
           </div>
           <div className="flex items-center gap-4">
             <LanguageSwitcher />
+            {user?.name && (
               <Link to="/profile" className="text-sm font-medium text-slate-500 hidden sm:block hover:text-indigo-600 transition">
-                My Profile
+                {t('nav.hello', { name: user.name })}
               </Link>
+            )}
             <button 
               onClick={logout}
               className="text-sm font-medium text-slate-500 hover:text-red-600"
@@ -145,7 +146,6 @@ export default function App() {
             <Route path="/relocation" element={<ProtectedRoute><Relocation /></ProtectedRoute>} />
             <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
             <Route path="/places" element={<ProtectedRoute><Places /></ProtectedRoute>} />
-            <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           </Routes>
         </Layout>

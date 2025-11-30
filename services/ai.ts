@@ -8,8 +8,9 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true,
 });
 
-const TEXT_MODEL = "gpt-5-chat-latest";
-const VISION_MODEL = "gpt-5-chat-latest";
+const TEXT_MODEL = "gpt-5";
+const TEXT_MODEL_MINI = "gpt-5-nano";
+const VISION_MODEL = "gpt-5-vision";
 
 type ChatHistoryItem = {
   role: "user" | "assistant" | "model";
@@ -77,21 +78,12 @@ export const AIService = {
     language: string = "English"
   ): Promise<RelocationStep[]> {
     const isNotInDest = !profile.isAlreadyInDestination;
-    const familyStatus = profile.familyStatus || "alone";
-    const familyLabel =
-      familyStatus === "with_partner"
-        ? "moving with spouse/partner"
-        : familyStatus === "with_children"
-        ? "moving with children"
-        : familyStatus === "with_partner_children"
-        ? "moving with spouse/partner and children"
-        : "moving alone";
     const completion = await openai.chat.completions.create({
       model: TEXT_MODEL,
       messages: [
         {
           role: "system",
-          content: `You are a relocation assistant. Respond in ${language}. Keep steps concise. If the user is not already in the destination, the first step must be titled "Gather Required Documents" with type "checklist" and include concrete checklistItems. Account for who is relocating (alone, with spouse/partner, with children) and include dependent/family paperwork (e.g., marriage certificate, birth certificates, school enrollment). Always return a JSON object with a "steps" array only.`,
+          content: `You are a relocation assistant. Respond in ${language}. Keep steps concise. If the user is not already in the destination, the first step must be titled "Gather Required Documents" with type "checklist" and include concrete checklistItems. Always return a JSON object with a "steps" array only.`,
         },
         {
           role: "user",
@@ -102,7 +94,6 @@ export const AIService = {
             MOVING TO: ${profile.toCountry}
             PURPOSE: ${profile.purpose}
             CURRENTLY IN DESTINATION: ${isNotInDest ? "No" : "Yes"}
-            FAMILY STATUS: ${familyLabel}
             DESTINATION CITY: ${profile.destinationCity || "Not specified"}
 
             Rules:
@@ -116,7 +107,7 @@ export const AIService = {
         },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.4,
+      temperature: 1,
     });
 
     const data = parseJson<{ steps?: any[] }>(completion.choices[0].message?.content || "{}", {
@@ -173,19 +164,10 @@ export const AIService = {
     history: ChatHistoryItem[] = [],
     language: string = "English"
   ): Promise<string> {
-    const familyStatus = profile.familyStatus || "alone";
-    const familyLabel =
-      familyStatus === "with_partner"
-        ? "with spouse/partner"
-        : familyStatus === "with_children"
-        ? "with children"
-        : familyStatus === "with_partner_children"
-        ? "with spouse/partner and children"
-        : "alone";
     const messages = [
       {
         role: "system" as const,
-        content: `You are a helpful relocation assistant. The user is moving from ${profile.currentResidence} (citizen of ${profile.citizenship}) to ${profile.toCountry}. They are relocating ${familyLabel}. Respond in ${language}. Keep answers concise and specific to the user's context.`,
+        content: `You are a helpful relocation assistant. The user is moving from ${profile.currentResidence} (citizen of ${profile.citizenship}) to ${profile.toCountry}. Respond in ${language}. Keep answers concise and specific to the user's context.`,
       },
       ...mapHistory(history),
       {
@@ -195,9 +177,9 @@ export const AIService = {
     ];
 
     const completion = await openai.chat.completions.create({
-      model: TEXT_MODEL,
+      model: TEXT_MODEL_MINI,
       messages,
-      temperature: 0.5,
+      temperature: 1,
     });
 
     return completion.choices[0].message?.content?.trim() || "I couldn't generate a response.";
@@ -250,7 +232,7 @@ export const AIService = {
         { role: "user", content: contentParts },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.2,
+      temperature: 1,
     });
 
     return parseJson<{ summary: string; actions: string[]; isDocument: boolean }>(
@@ -266,24 +248,25 @@ export const AIService = {
     city: string,
     budget: string,
     interests: string[],
+    searchQuery: string = "",
     language: string = "English"
   ): Promise<any[]> {
     const completion = await openai.chat.completions.create({
-      model: TEXT_MODEL,
+      model: TEXT_MODEL_MINI,
       messages: [
         {
           role: "system",
-          content: `Suggest 3 welcoming places for newcomers. Provide clear titles, short descriptions, and a link or address when possible. Respond in ${language}. Return a JSON object with "suggestions" array only.`,
+          content: `Suggest 3 welcoming places for newcomers. Provide clear titles, short descriptions, and a link to google maps or address. Respond in ${language}. Return a JSON object with "suggestions" array only.`,
         },
         {
           role: "user",
           content: `City: ${city}\nBudget: ${budget}\nInterests: ${interests.join(
             ", "
-          )}`,
+          )}${searchQuery ? `\nSpecific search: ${searchQuery}` : ""}`,
         },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.6,
+      temperature: 1,
     });
 
     const data = parseJson<{ suggestions?: any[] }>(
@@ -406,9 +389,9 @@ export const AIService = {
     ];
 
     const completion = await openai.chat.completions.create({
-      model: TEXT_MODEL,
+      model: TEXT_MODEL_MINI,
       messages,
-      temperature: 0.5,
+      temperature: 1,
     });
 
     return completion.choices[0].message?.content;
