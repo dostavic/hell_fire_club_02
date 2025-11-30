@@ -12,6 +12,7 @@ export default function Places() {
   const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
   const [loadingAi, setLoadingAi] = useState(false);
   const [cityInput, setCityInput] = useState('Berlin');
+  const [searchQuery, setSearchQuery] = useState('');
   const { t, language } = useI18n();
 
   useEffect(() => {
@@ -25,8 +26,11 @@ export default function Places() {
     setLoadingAi(true);
     setAiSuggestions([]);
     try {
-      // Hardcoded interests for demo
-      const results = await AIService.getCitySuggestions(cityInput, 'medium', ['culture', 'coffee', 'meeting people'], language);
+      // Use search query if provided, otherwise use default interests
+      const interests = searchQuery.trim() 
+        ? [searchQuery] 
+        : ['culture', 'coffee', 'meeting people'];
+      const results = await AIService.getCitySuggestions(cityInput, 'medium', interests, searchQuery, language);
       setAiSuggestions(results);
     } catch (e) {
       console.error(e);
@@ -83,21 +87,30 @@ export default function Places() {
           <h1 className="text-3xl font-bold mb-4">{t('places.heading')}</h1>
           <p className="text-indigo-200 mb-6">{t('places.lead')}</p>
           
-          <div className="flex gap-2">
-            <input 
-              type="text" 
-              value={cityInput}
-              onChange={e => setCityInput(e.target.value)}
-              className="flex-grow px-4 py-3 rounded-lg text-slate-900 focus:outline-none bg-white"
-              placeholder={t('places.placeholder')}
-            />
-            <button 
-              onClick={handleCityBuddy}
-              disabled={loadingAi}
-              className="bg-indigo-500 hover:bg-indigo-400 px-6 py-3 rounded-lg font-semibold transition disabled:opacity-50"
-            >
-              {loadingAi ? t('places.searching') : t('places.askBuddy')}
-            </button>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <input 
+                type="text" 
+                value={cityInput}
+                onChange={e => setCityInput(e.target.value)}
+                className="flex-grow px-4 py-3 rounded-lg text-slate-900 focus:outline-none bg-white"
+                placeholder={t('places.placeholder')}
+              />
+              <input 
+                type="text" 
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="flex-grow px-4 py-3 rounded-lg text-slate-900 focus:outline-none bg-white"
+                placeholder="Що шукаєте? (кафе, бібліотека, храм...)"
+              />
+              <button 
+                onClick={handleCityBuddy}
+                disabled={loadingAi}
+                className="bg-indigo-500 hover:bg-indigo-400 px-6 py-3 rounded-lg font-semibold transition disabled:opacity-50"
+              >
+                {loadingAi ? t('places.searching') : t('places.askBuddy')}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -105,7 +118,9 @@ export default function Places() {
       {aiSuggestions.length > 0 && (
         <div className="mb-8">
           <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-            {t('places.aiTitle', { city: cityInput })}
+            {searchQuery.trim() 
+              ? t('places.aiTitleSearch', { city: cityInput, query: searchQuery })
+              : t('places.aiTitle', { city: cityInput })}
           </h2>
           <div className="grid md:grid-cols-3 gap-6">
             {aiSuggestions.map((s, i) => (
