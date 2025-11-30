@@ -41,9 +41,6 @@ const LandingFooter: React.FC<LandingFooterProps> = ({ onLogin }) => {
               <li>
                 <button className="hover:text-primary-400 transition-colors">Explore Places</button>
               </li>
-              <li>
-                <button className="hover:text-primary-400 transition-colors">Pricing</button>
-              </li>
             </ul>
           </div>
 
