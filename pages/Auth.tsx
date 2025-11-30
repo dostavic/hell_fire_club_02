@@ -15,15 +15,8 @@ export default function Auth() {
   const { t } = useI18n();
 
   useEffect(() => {
-    const mode = searchParams.get('mode');
     const verified = searchParams.get('verified');
     const token = searchParams.get('token');
-
-    if (mode === 'register') {
-      setIsLogin(false);
-    } else if (mode === 'login') {
-      setIsLogin(true);
-    }
     
     if (verified === 'true') {
       setMessage('Registration successful! Your email has been verified. You can now log in.');
@@ -45,7 +38,7 @@ export default function Auth() {
         })
         .catch(() => setMessage('Verification failed'));
     }
-  }, [navigate, searchParams, setUser]);
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
