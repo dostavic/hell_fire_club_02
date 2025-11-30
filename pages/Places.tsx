@@ -58,7 +58,7 @@ export default function Places() {
     const newPlace: Place = {
       id: Math.random().toString(36).substr(2, 9),
       title: suggestion.title,
-      description: suggestion.description || "Found via City Buddy",
+      description: suggestion.description || t('places.foundViaCityBuddy'),
       country: profile?.toCountry || 'Unknown',
       city: cityInput,
       category: category,
@@ -101,7 +101,7 @@ export default function Places() {
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="flex-grow px-4 py-3 rounded-lg text-slate-900 focus:outline-none bg-white"
-                placeholder="Що шукаєте? (кафе, бібліотека, храм...)"
+                placeholder={t('places.searchPlaceholder')}
               />
               <button 
                 onClick={handleCityBuddy}
@@ -135,7 +135,7 @@ export default function Places() {
                           onClick={() => handleAddToFavorites(s)}
                           disabled={isFavorite(s.title)}
                           className="absolute top-4 right-4 text-slate-400 hover:text-yellow-500 transition disabled:text-yellow-500"
-                          title="Add to Favorites"
+                          title={t('places.addToFavorites')}
                         >
                           {isFavorite(s.title) ? '★' : '☆'}
                         </button>
@@ -167,12 +167,12 @@ export default function Places() {
               <div key={place.id} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition group relative">
                 <div className="flex justify-between items-start mb-2">
                   <span className={`px-2 py-1 rounded text-xs font-semibold ${place.priceLevel === 'free' ? 'bg-green-100 text-green-700' : place.priceLevel === 'unknown' ? 'bg-slate-100 text-slate-500' : 'bg-slate-100 text-slate-600'}`}>
-                     {place.priceLevel === 'free' ? 'Free' : place.priceLevel === 'unknown' ? '?' : place.priceLevel}
+                     {place.priceLevel === 'free' ? t('common.free') : place.priceLevel === 'unknown' ? t('common.unknown') : place.priceLevel}
                   </span>
                   <button 
                     onClick={() => handleRemoveFromFavorites(place.id)}
                     className="text-yellow-500 hover:text-slate-300 transition"
-                    title="Remove from Favorites"
+                    title={t('places.removeFromFavorites')}
                   >
                     ★
                   </button>

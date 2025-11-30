@@ -19,7 +19,7 @@ export default function Auth() {
     const token = searchParams.get('token');
     
     if (verified === 'true') {
-      setMessage('Registration successful! Your email has been verified. You can now log in.');
+      setMessage(t('auth.verificationSuccess'));
       setIsLogin(true);
     } else if (token) {
       // Verify the token

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Menu, X } from 'lucide-react';
-import { LanguageSwitcher } from '../../services/i18n';
+import { LanguageSwitcher, useI18n } from '../../services/i18n';
 
 interface LandingHeaderProps {
   onLogin: () => void;
@@ -16,6 +16,7 @@ const LandingHeader: React.FC<LandingHeaderProps> = ({
   onGoHome,
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { t } = useI18n();
 
   const handleScroll = () => {
     onScrollToFeatures?.();
@@ -33,7 +34,7 @@ const LandingHeader: React.FC<LandingHeaderProps> = ({
           className="flex items-center gap-2 text-primary-600 font-bold tracking-tight text-xl"
         >
           <span className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-primary-600 text-white">I</span>
-          <span>ImmiPath</span>
+          <span>{t('landing.brandName')}</span>
         </button>
 
         {/* <nav className="hidden md:flex items-center gap-8 text-sm text-slate-600">
@@ -51,13 +52,13 @@ const LandingHeader: React.FC<LandingHeaderProps> = ({
         <div className="hidden md:flex items-center gap-4">
           <LanguageSwitcher />
           <button onClick={onLogin} className="text-primary-700 font-semibold hover:text-primary-800 transition-colors">
-            Log In
+            {t('landing.login')}
           </button>
           <button
             onClick={onRegister}
             className="bg-primary-600 hover:bg-primary-700 text-white px-5 py-2 rounded-full font-medium transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
           >
-            Start for free
+            {t('landing.startForFree')}
           </button>
         </div>
 
@@ -93,13 +94,13 @@ const LandingHeader: React.FC<LandingHeaderProps> = ({
           </button> */}
           <div className="pt-2 flex flex-col gap-2">
             <button onClick={onLogin} className="w-full py-2 text-primary-700 font-semibold">
-              Log In
+              {t('landing.login')}
             </button>
             <button
               onClick={onRegister}
               className="w-full py-2 rounded-lg bg-primary-600 text-white font-semibold hover:bg-primary-700 transition-colors"
             >
-              Start for free
+              {t('landing.startForFree')}
             </button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { FileText, LucideIcon, MapPin, Users } from 'lucide-react';
+import { useI18n } from '../../services/i18n';
 
 type FeatureCardProps = {
   title: string;
@@ -7,13 +8,14 @@ type FeatureCardProps = {
   detail: string;
   Icon: LucideIcon;
   badge?: string;
+  learnMoreText: string;
 };
 
 interface LandingFeaturesProps {
   onGetStarted?: () => void;
 }
 
-const FeatureCard: React.FC<FeatureCardProps> = ({ title, description, detail, Icon, badge }) => (
+const FeatureCard: React.FC<FeatureCardProps> = ({ title, description, detail, Icon, badge, learnMoreText }) => (
   <div className="group bg-white rounded-2xl p-6 sm:p-8 shadow-sm hover:shadow-xl border border-slate-100 hover:border-indigo-100 transition-all duration-300 flex flex-col h-full relative overflow-hidden">
     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-400 to-indigo-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
 
@@ -32,48 +34,50 @@ const FeatureCard: React.FC<FeatureCardProps> = ({ title, description, detail, I
         </span>
       )}
       <div className="flex items-center gap-2 text-indigo-600 font-semibold group-hover:gap-3 transition-all text-sm uppercase tracking-wide">
-        Learn more
+        {learnMoreText}
       </div>
     </div>
   </div>
 );
 
 const LandingFeatures: React.FC<LandingFeaturesProps> = ({ onGetStarted }) => {
+  const { t } = useI18n();
   return (
     <>
       <section id="features" className="py-24 bg-slate-50 relative">
         <div className="max-w-7xl mx-auto px-4 md:px-6">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
-              Everything you need to <span className="text-indigo-600">settle in</span>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4" dangerouslySetInnerHTML={{ __html: t('landing.features.title') }}>
             </h2>
             <p className="text-lg text-slate-600">
-              We do not just help you move; we help you build a life. From paperwork to finding your favorite coffee shop,
-              ImmiPath is with you.
+              {t('landing.features.subtitle')}
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <FeatureCard
-              title="Personal relocation plan"
-              description="Step-by-step guidance with required documents, deadlines, and links to official resources for your destination country."
-              detail="Never miss a deadline with our reminders."
+              title={t('landing.features.card1.title')}
+              description={t('landing.features.card1.description')}
+              detail={t('landing.features.card1.detail')}
               Icon={FileText}
-              badge="Legal ready"
+              badge={t('landing.features.card1.badge')}
+              learnMoreText={t('landing.features.learnMore')}
             />
             <FeatureCard
-              title="Find events and people"
-              description="Local meetups, language clubs, and support groups filtered to the city in your plan so you land with a community."
-              detail="10k+ expats are already here."
+              title={t('landing.features.card2.title')}
+              description={t('landing.features.card2.description')}
+              detail={t('landing.features.card2.detail')}
               Icon={Users}
-              badge="Community"
+              badge={t('landing.features.card2.badge')}
+              learnMoreText={t('landing.features.learnMore')}
             />
             <FeatureCard
-              title="Explore places by interests"
-              description="Curated restaurants, parks, faith places, and kid-friendly spots so the new city feels familiar from day one."
-              detail="Matched to your hobbies and family needs."
+              title={t('landing.features.card3.title')}
+              description={t('landing.features.card3.description')}
+              detail={t('landing.features.card3.detail')}
               Icon={MapPin}
-              badge="City buddy"
+              badge={t('landing.features.card3.badge')}
+              learnMoreText={t('landing.features.learnMore')}
             />
           </div>
 
@@ -82,7 +86,7 @@ const LandingFeatures: React.FC<LandingFeaturesProps> = ({ onGetStarted }) => {
               onClick={onGetStarted}
               className="inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full bg-indigo-600 text-white font-semibold shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all"
             >
-              Build my plan
+              {t('landing.features.buildPlan')}
             </button>
           </div>
         </div>
@@ -91,36 +95,33 @@ const LandingFeatures: React.FC<LandingFeaturesProps> = ({ onGetStarted }) => {
       <div className="bg-white py-20 border-t border-slate-200 mt-12">
         <div className="max-w-4xl mx-auto px-4">
           <div className="text-center mb-16">
-            <span className="text-indigo-600 font-semibold tracking-wide uppercase text-sm">Our Story</span>
-            <h2 className="text-3xl font-bold text-slate-900 mt-2">About The Project</h2>
+            <span className="text-indigo-600 font-semibold tracking-wide uppercase text-sm">{t('landing.about.ourStory')}</span>
+            <h2 className="text-3xl font-bold text-slate-900 mt-2">{t('landing.about.title')}</h2>
           </div>
 
           <div className="space-y-12">
             <section>
-              <h3 className="text-2xl font-bold text-slate-800 mb-4">Inspiration</h3>
+              <h3 className="text-2xl font-bold text-slate-800 mb-4">{t('landing.about.inspiration')}</h3>
               <p className="text-slate-600 leading-relaxed text-lg">
-                Moving to a new country is one of the most stressful experiences in life. Between deciphering foreign bureaucracy, finding housing, and combating loneliness, many immigrants feel overwhelmed. We were inspired by the millions of people moving to Europe who need a knowledgeable, empathetic friend to guide them—not just a search engine, but a companion that understands their specific context.
+                {t('landing.about.inspirationText')}
               </p>
             </section>
 
             <section>
-              <h3 className="text-2xl font-bold text-slate-800 mb-4">What it does</h3>
-              <p className="text-slate-600 leading-relaxed text-lg">
-                ImmiPath is an all-in-one integration platform. It uses AI to generate <strong>personalized relocation plans</strong> based on citizenship and goals. Its <strong>Document Explainer</strong> allows users to upload photos or PDFs of bureaucratic letters and get instant, simple summaries. The <strong>City Buddy</strong> feature helps users find welcoming spaces (cafes, libraries) using Google Maps data, and the Events section connects them with local support groups.
+              <h3 className="text-2xl font-bold text-slate-800 mb-4">{t('landing.about.whatItDoes')}</h3>
+              <p className="text-slate-600 leading-relaxed text-lg" dangerouslySetInnerHTML={{ __html: t('landing.about.whatItDoesText') }}>
               </p>
             </section>
 
             <section>
-              <h3 className="text-2xl font-bold text-slate-800 mb-4">Accomplishments that we're proud of</h3>
-              <p className="text-slate-600 leading-relaxed text-lg">
-                We're particularly proud of the <strong>Document Explainer</strong>. Seeing the AI correctly identify a German tax form from a photo or PDF and explain it in simple English was a "magic moment." We also love how the Dashboard dynamically updates as users complete tasks, giving them a real sense of progress.
+              <h3 className="text-2xl font-bold text-slate-800 mb-4">{t('landing.about.accomplishments')}</h3>
+              <p className="text-slate-600 leading-relaxed text-lg" dangerouslySetInnerHTML={{ __html: t('landing.about.accomplishmentsText') }}>
               </p>
             </section>
 
             <section>
-              <h3 className="text-2xl font-bold text-slate-800 mb-4">What's next for ImmiPath</h3>
-              <p className="text-slate-600 leading-relaxed text-lg">
-                Next, we plan to add <strong>Real-time Voice Translation</strong> for users visiting government offices. We also want to integrate a <strong>"Human Loop"</strong> feature where users can book 15-minute consultations with verified immigration experts for complex cases.
+              <h3 className="text-2xl font-bold text-slate-800 mb-4">{t('landing.about.next')}</h3>
+              <p className="text-slate-600 leading-relaxed text-lg" dangerouslySetInnerHTML={{ __html: t('landing.about.nextText') }}>
               </p>
             </section>
           </div>

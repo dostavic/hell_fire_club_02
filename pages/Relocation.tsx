@@ -422,7 +422,7 @@ export default function Relocation() {
         <form onSubmit={handleCreateProfile} className="space-y-6">
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-slate-700">Country of Citizenship</label>
+              <label className="block text-sm font-medium text-slate-700">{t('relocation.citizenship')}</label>
               <select 
                 required
                 className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900"
@@ -433,7 +433,7 @@ export default function Relocation() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700">Country of Residence</label>
+              <label className="block text-sm font-medium text-slate-700">{t('relocation.residence')}</label>
                <select 
                 required
                 className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900"
@@ -447,7 +447,7 @@ export default function Relocation() {
           
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-slate-700">Where are you moving to?</label>
+              <label className="block text-sm font-medium text-slate-700">{t('relocation.to')}</label>
               <select 
                 required
                 className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900"
@@ -459,11 +459,11 @@ export default function Relocation() {
               </select>
             </div>
             <div>
-               <label className="block text-sm font-medium text-slate-700">Destination City (Optional)</label>
+               <label className="block text-sm font-medium text-slate-700">{t('relocation.destinationCity')}</label>
                <input
                 type="text"
                 className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900"
-                placeholder="e.g. Berlin"
+                placeholder={t('relocation.destinationCityPlaceholder')}
                 value={destinationCity}
                 onChange={e => setDestinationCity(e.target.value)}
                />
@@ -471,7 +471,7 @@ export default function Relocation() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700">Primary Purpose</label>
+            <label className="block text-sm font-medium text-slate-700">{t('relocation.purpose')}</label>
             <select 
               className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md bg-white text-slate-900"
               value={purpose}

@@ -83,7 +83,7 @@ export const AIService = {
       messages: [
         {
           role: "system",
-          content: `You are a relocation assistant. Respond in ${language}. Keep steps concise. If the user is not already in the destination, the first step must be titled "Gather Required Documents" with type "checklist" and include concrete checklistItems. Always return a JSON object with a "steps" array only.`,
+          content: `You are a relocation assistant. Respond ONLY in ${language}. Keep steps concise. If the user is not already in the destination, the first step must be titled "Gather Required Documents" with type "checklist" and include concrete checklistItems. Always return a JSON object with a "steps" array only.`,
         },
         {
           role: "user",
@@ -310,7 +310,7 @@ export const AIService = {
     const fallbackMapLinkNear = makeMapLink(nearQuery, locationCountry);
 
     const completion = await openai.chat.completions.create({
-      model: TEXT_MODEL,
+      model: TEXT_MODEL_MINI,
       messages: [
         {
           role: "system",
@@ -328,7 +328,6 @@ export const AIService = {
         },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.3,
     });
 
     const parsed = parseJson<Partial<ConsulateInfo>>(

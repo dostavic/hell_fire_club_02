@@ -205,10 +205,8 @@ export default function Dashboard() {
           {profile ? (
             <div className="mt-4">
               <div className="flex justify-between text-sm mb-1">
-                {/* TODO: add i18n */}
-
-                <span className="font-medium text-slate-700">{progress}% Completed</span>
-                <span className="text-slate-500">{completedSteps}/{totalSteps} steps</span>
+                <span className="font-medium text-slate-700">{t('dashboard.progressLabel', { percent: progress })}</span>
+                <span className="text-slate-500">{t('dashboard.stepsLabel', { done: completedSteps, total: totalSteps })}</span>
               </div>
               <div className="w-full bg-slate-200 rounded-full h-2.5">
                 <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
@@ -220,11 +218,11 @@ export default function Dashboard() {
                     disabled 
                     className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-medium cursor-not-allowed opacity-90"
                   >
-                    All tasks done
+                    {t('dashboard.allDone')}
                   </button>
                 ) : (
                   <Link to="/relocation" className="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-md text-sm font-medium hover:bg-indigo-100 transition">
-                    Continue Tasks
+                    {t('dashboard.continue')}
                   </Link>
                 )}
               </div>
@@ -264,21 +262,30 @@ export default function Dashboard() {
            <h2 className="text-xl font-bold text-slate-900">{t('dashboard.recommendedEvents')}</h2>
            <Link to="/events" className="text-indigo-600 text-sm font-medium hover:underline">{t('dashboard.viewAll')}</Link>
         </div>
-        <div className="grid md:grid-cols-3 gap-6">
-          {events.map(evt => (
-            <div key={evt.id} className="bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-md transition">
-              <div className="p-5">
-                <span className="inline-block px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded-md mb-2">
+        <div className="relative">
+          <div className="grid md:grid-cols-3 gap-6">
+            {events.map(evt => (
+              <div key={evt.id} className="bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-md transition">
+                <div className="p-5">
+                  <span className="inline-block px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded-md mb-2">
+                    {/* TODO: add i18n */}
+                    {evt.category.replace('_', ' ')}
+                  </span>
+                  <h3 className="font-bold text-slate-900 mb-1">{evt.title}</h3>
                   {/* TODO: add i18n */}
-                  {evt.category.replace('_', ' ')}
-                </span>
-                <h3 className="font-bold text-slate-900 mb-1">{evt.title}</h3>
-                {/* TODO: add i18n */}
-                <p className="text-sm text-slate-500 mb-3">{evt.city} • {new Date(evt.date).toLocaleDateString()}</p>
-                <p className="text-sm text-slate-600 line-clamp-2">{evt.description}</p>
+                  <p className="text-sm text-slate-500 mb-3">{evt.city} • {new Date(evt.date).toLocaleDateString()}</p>
+                  <p className="text-sm text-slate-600 line-clamp-2">{evt.description}</p>
+                </div>
               </div>
+            ))}
+          </div>
+          {/* Coming Soon Overlay */}
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-lg">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-slate-700 mb-2">Coming Soon</div>
+              <p className="text-slate-500">Events feature is under development</p>
             </div>
-          ))}
+          </div>
         </div>
       </div>
     </div>
