@@ -264,21 +264,30 @@ export default function Dashboard() {
            <h2 className="text-xl font-bold text-slate-900">{t('dashboard.recommendedEvents')}</h2>
            <Link to="/events" className="text-indigo-600 text-sm font-medium hover:underline">{t('dashboard.viewAll')}</Link>
         </div>
-        <div className="grid md:grid-cols-3 gap-6">
-          {events.map(evt => (
-            <div key={evt.id} className="bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-md transition">
-              <div className="p-5">
-                <span className="inline-block px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded-md mb-2">
+        <div className="relative">
+          <div className="grid md:grid-cols-3 gap-6">
+            {events.map(evt => (
+              <div key={evt.id} className="bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-md transition">
+                <div className="p-5">
+                  <span className="inline-block px-2 py-1 text-xs font-semibold bg-green-100 text-green-700 rounded-md mb-2">
+                    {/* TODO: add i18n */}
+                    {evt.category.replace('_', ' ')}
+                  </span>
+                  <h3 className="font-bold text-slate-900 mb-1">{evt.title}</h3>
                   {/* TODO: add i18n */}
-                  {evt.category.replace('_', ' ')}
-                </span>
-                <h3 className="font-bold text-slate-900 mb-1">{evt.title}</h3>
-                {/* TODO: add i18n */}
-                <p className="text-sm text-slate-500 mb-3">{evt.city} • {new Date(evt.date).toLocaleDateString()}</p>
-                <p className="text-sm text-slate-600 line-clamp-2">{evt.description}</p>
+                  <p className="text-sm text-slate-500 mb-3">{evt.city} • {new Date(evt.date).toLocaleDateString()}</p>
+                  <p className="text-sm text-slate-600 line-clamp-2">{evt.description}</p>
+                </div>
               </div>
+            ))}
+          </div>
+          {/* Coming Soon Overlay */}
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-lg">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-slate-700 mb-2">Coming Soon</div>
+              <p className="text-slate-500">Events feature is under development</p>
             </div>
-          ))}
+          </div>
         </div>
       </div>
     </div>

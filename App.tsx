@@ -45,8 +45,8 @@ const Layout = ({ children }: { children?: React.ReactNode }) => {
             <nav className="hidden md:flex gap-6 text-sm font-medium text-slate-600">
               <Link to="/dashboard" className="hover:text-indigo-600 transition">{t('nav.dashboard')}</Link>
               <Link to="/relocation" className="hover:text-indigo-600 transition">{t('nav.relocation')}</Link>
-              <Link to="/events" className="hover:text-indigo-600 transition">{t('nav.events')}</Link>
               <Link to="/places" className="hover:text-indigo-600 transition">{t('nav.places')}</Link>
+              <Link to="/events" className="hover:text-indigo-600 transition">{t('nav.events')}</Link>
             </nav>
           </div>
           <div className="flex items-center gap-4">
