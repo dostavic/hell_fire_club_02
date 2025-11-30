@@ -1,9 +1,6 @@
-const path = require('path');
 const fastify = require('fastify')({ logger: true });
 const { Pool } = require('pg');
-
-// Explicitly load env variables from backend/.env.local (or .env) so DB config is available
-require('dotenv').config({ path: path.join(__dirname, '.env.local') });
+require('dotenv').config();
 
 // Register plugins
 fastify.register(require('@fastify/cors'), {
@@ -23,6 +20,9 @@ fastify.get('/', async (request, reply) => {
 
 // Register auth routes
 fastify.register(require('./routes/auth'), { prefix: '/api/auth' });
+
+// Register chat routes
+fastify.register(require('./routes/chat'), { prefix: '/api/chat' });
 
 // Start server
 const start = async () => {
