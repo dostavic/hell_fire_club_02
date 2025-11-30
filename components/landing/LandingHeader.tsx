@@ -36,7 +36,7 @@ const LandingHeader: React.FC<LandingHeaderProps> = ({
           <span>ImmiPath</span>
         </button>
 
-        <nav className="hidden md:flex items-center gap-8 text-sm text-slate-600">
+        {/* <nav className="hidden md:flex items-center gap-8 text-sm text-slate-600">
           <button onClick={handleScroll} className="hover:text-primary-600 transition-colors">
             Why ImmiPath
           </button>
@@ -46,7 +46,7 @@ const LandingHeader: React.FC<LandingHeaderProps> = ({
           <button onClick={handleScroll} className="hover:text-primary-600 transition-colors">
             Platform
           </button>
-        </nav>
+        </nav> */}
 
         <div className="hidden md:flex items-center gap-4">
           <LanguageSwitcher />
@@ -82,7 +82,7 @@ const LandingHeader: React.FC<LandingHeaderProps> = ({
               <X size={18} />
             </button>
           </div>
-          <button onClick={handleScroll} className="block w-full text-left py-2 font-medium text-slate-700">
+          {/* <button onClick={handleScroll} className="block w-full text-left py-2 font-medium text-slate-700">
             Why ImmiPath
           </button>
           <button onClick={handleScroll} className="block w-full text-left py-2 font-medium text-slate-700">
@@ -90,7 +90,7 @@ const LandingHeader: React.FC<LandingHeaderProps> = ({
           </button>
           <button onClick={handleScroll} className="block w-full text-left py-2 font-medium text-slate-700">
             Platform
-          </button>
+          </button> */}
           <div className="pt-2 flex flex-col gap-2">
             <button onClick={onLogin} className="w-full py-2 text-primary-700 font-semibold">
               Log In
